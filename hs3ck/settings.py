@@ -11,7 +11,7 @@ environ.Env.read_env()
 
 AUTH_USER_MODEL = "users.User"
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent 
 
 
 # Quick-start development settings - unsuitable for production
@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
     'users',
     'rest_framework_simplejwt.token_blacklist',
     'matches',
@@ -44,15 +45,10 @@ INSTALLED_APPS = [
     'fixtures',
 ]
 
+# Rest framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
-}
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=1),
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
+'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
+'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',)
 }
 
 MIDDLEWARE = [

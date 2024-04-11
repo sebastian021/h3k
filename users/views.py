@@ -2,7 +2,6 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import permissions, viewsets
 from .serializers import RegisterSerializer, LoginSerializer, LogoutSerializer, UserProfileSerializer
-from rest_framework.decorators import api_view
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status
