@@ -13,10 +13,11 @@ class RegisterView(generics.GenericAPIView):
     def post(self, request):
         user = request.data
         serializer = self.serializer_class(data=user)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        user_data = serializer.data
-        return Response(user_data, status=status.HTTP_201_CREATED)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "register was successful"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "register was unsuccessful"}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginAPIView(generics.GenericAPIView):
