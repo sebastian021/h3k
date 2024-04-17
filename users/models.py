@@ -48,10 +48,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     ordering ='email'
     def __str__(self):
         return self.email
-    
-    def get_name(self):
-        return self.name
-    
+
     def tokens(self):
         refresh = RefreshToken.for_user(self)
         return{
@@ -65,6 +62,3 @@ class UserProfile(models.Model):
     dob = models.DateField()
     country = models.CharField(max_length=50)
     photo = models.ImageField(upload_to='uploads', blank=True)
-
-    def __str__(self):
-        return self.user.name
