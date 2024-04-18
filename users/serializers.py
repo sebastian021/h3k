@@ -89,3 +89,19 @@ class LogoutSerializer(serializers.Serializer):
             raise serializers.ValidationError(str(e))
 
         return data
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Add custom claims to the token payload
+        token['user_id'] = user.id
+        token['user_name'] = user.name
+        token['status'] = user.is_active
+        token['email'] = user.email
+        token['role'] = user.role
+
+        return token
