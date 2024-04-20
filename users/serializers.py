@@ -58,25 +58,25 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+# class LoginSerializer(serializers.Serializer):
+#     email = serializers.EmailField()
+#     password = serializers.CharField()
 
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
+#     def validate(self, data):
+#         email = data.get('email')
+#         password = data.get('password')
 
-        if email and password:
-            user = authenticate(email=email, password=password)
+#         if email and password:
+#             user = authenticate(email=email, password=password)
 
-            if user:
-                data['user'] = user
-            else:
-                raise serializers.ValidationError('Invalid email or password')
-        else:
-            raise serializers.ValidationError('Email and password are required')
+#             if user:
+#                 data['user'] = user
+#             else:
+#                 raise serializers.ValidationError('Invalid email or password')
+#         else:
+#             raise serializers.ValidationError('Email and password are required')
 
-        return data
+#         return data
 
 class LogoutSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
@@ -96,12 +96,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-
-        # Add custom claims to the token payload
-        token['user_id'] = user.id
-        token['user_name'] = user.name
+        # Add custom claims
+        token['name'] = user.name
+        token['role'] = user.role
         token['status'] = user.is_active
         token['email'] = user.email
-        token['role'] = user.role
 
         return token
