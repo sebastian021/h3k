@@ -1,8 +1,7 @@
 from rest_framework import generics,status,views,permissions
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer, LogoutSerializer
-from .serializers import CustomTokenObtainPairSerializer
+from .serializers import RegisterSerializer, LogoutSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 # Create your views here.
 
@@ -17,15 +16,16 @@ class RegisterView(generics.GenericAPIView):
         else:
             return Response({"message": "Register was unsuccessful"}, status=status.HTTP_400_BAD_REQUEST)
 
-# class LoginAPIView(generics.GenericAPIView):
-#     serializer_class = CustomTokenObtainPairSerializer
-#     def post(self,request):
-#         serializer = self.serializer_class(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         user = serializer.validated_data.get('user')
-#         refresh = RefreshToken.for_user(user)
-#         access_token = str(refresh.access_token)
-#         return Response({'access_token': access_token}, status=status.HTTP_200_OK)
+class LoginAPIView(generics.GenericAPIView):
+    serializer_class = CustomTokenObtainPairSerializer
+    def post(self,request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data.get('user')
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        return Response({'access_token': access_token}, status=status.HTTP_200_OK)
+    
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
 
