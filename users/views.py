@@ -26,9 +26,6 @@ class LoginAPIView(generics.GenericAPIView):
         access_token = str(refresh.access_token)
         return Response({'access_token': access_token}, status=status.HTTP_200_OK)
     
-from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer
-
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     
