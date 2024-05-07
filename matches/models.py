@@ -31,4 +31,4 @@ class Match(models.Model):
     extratime_score = models.CharField(max_length=250, null=True)
     penalty_score = models.CharField(max_length=250, null=True)
     match_refree = models.CharField(max_length=250, blank=True, null=True)
-    fulltime_score = models.CharField(max_length=255, null=True)
+    
