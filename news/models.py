@@ -18,7 +18,7 @@ class News(models.Model):
     title = models.CharField(max_length=60, verbose_name = 'عنوان')    
     slug = models.SlugField(null=False, unique=True, allow_unicode=True, max_length=100, verbose_name = 'لینک')
     seo = models.TextField(blank=True, verbose_name = 'سئو')
-    body = models.TextField(max_length=2000, null=True, verbose_name = 'متن کامل')
+    body = models.TextField(max_length=2000, blank=True, null=True, verbose_name = 'متن کامل')
     type = models.CharField(max_length=50, choices=MEDIA_CHOICES)
     publish = models.DateTimeField(default=timezone.now, verbose_name = 'تاریخ انتشار')
     created = models.DateTimeField(auto_now_add=True, verbose_name = 'تاریخ ثبت ')
