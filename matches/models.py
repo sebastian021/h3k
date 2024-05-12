@@ -4,6 +4,7 @@ from django.db import models
 from django.db import models
 
 class Match(models.Model):
+    fixture_id = models.IntegerField(null=True)
     match_date = models.DateTimeField(null=True)
     match_timestamp = models.IntegerField(null=True)
     match_periods_first = models.CharField(max_length=250, null=True)
@@ -31,4 +32,8 @@ class Match(models.Model):
     extratime_score = models.CharField(max_length=250, null=True)
     penalty_score = models.CharField(max_length=250, null=True)
     match_refree = models.CharField(max_length=250, blank=True, null=True)
+
+class MatchStats(models.Model):
+    fixture_id = models.ForeignKey(Match, blank=True, null=True, on_delete=models.CASCADE)
+    statistics_data = models.JSONField(blank=True, null=True)
     
