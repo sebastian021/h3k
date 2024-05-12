@@ -115,7 +115,7 @@ DATABASES = {
 
 '''
 DATABASES = {
-    'default' : dj_database_url.parse(env('DATABASE_URL2'))
+    'default' : dj_database_url.parse(env('DATABASE_URL'))
 }
 
 
