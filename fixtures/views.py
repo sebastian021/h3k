@@ -133,6 +133,12 @@ class FixtureEvents(APIView):
                 logo = event['team']['logo']
                 player_id = event['player']['id']
                 player_name = event['player']['name']
+                assist_id = event['assist']
+                assist_name = event['assist']['name']
+                type = event['type']
+                detail = event['detail']
+                comments = event['comments']
+                
 
                 event_stats = FixturesEvents.objects.create(
                     fixture_id=fixture,
@@ -141,7 +147,13 @@ class FixtureEvents(APIView):
                     team_name=team_name,
                     logo=logo,
                     player_id=player_id,
-                    player_name=player_name
+                    player_name=player_name,
+                    assist_id = assist_id,
+                    assist_name = assist_name,
+                    type = type,
+                    detail = detail,
+                    comments = comments,
+
                 )
 
                 serializer = FixturesEventsSerializers(event_stats)
