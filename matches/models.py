@@ -37,3 +37,16 @@ class MatchStats(models.Model):
     fixture_id = models.ForeignKey(Match, blank=True, null=True, on_delete=models.CASCADE)
     statistics_data = models.JSONField(blank=True, null=True)
     
+class MatchesEvents(models.Model):
+    fixture_id = models.ForeignKey(Match, on_delete=models.CASCADE)
+    time = models.CharField(max_length=100, blank=True, null=True)
+    team_id = models.IntegerField(blank=True, null=True)
+    team_name = models.CharField(max_length=100, blank=True, null=True)
+    logo = models.URLField(blank=True, null=True)
+    player_id = models.IntegerField(blank=True, null=True)
+    player_name = models.CharField(max_length=100, blank=True, null=True)
+    assist_id = models.CharField(max_length=100, blank=True, null=True)
+    assist_name = models.CharField(max_length=100, blank=True, null=True)
+    type = models.CharField(max_length=100, blank=True, null=True)
+    detail = models.CharField(max_length=100, blank=True, null=True)
+    comments = models.CharField(max_length=100, blank=True, null=True)

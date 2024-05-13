@@ -10,3 +10,8 @@ class MatchStatsSerializer(serializers.ModelSerializer):
     class Meta: 
         model = MatchStats 
         fields = '__all__' 
+
+class MatchEventsSerializer(serializers.ModelSerializer): 
+    class Meta: 
+        model = MatchStats 
+        fields = '__all__' 

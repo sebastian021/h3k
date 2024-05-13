@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .models import Match, MatchStats
-from .serializers import MatchSerializer, MatchStatsSerializer
+from .models import Match, MatchStats, MatchesEvents
+from .serializers import MatchSerializer, MatchStatsSerializer, MatchEventsSerializer
 import requests
 import re
 
@@ -123,3 +123,54 @@ class MatchStatisticsView(APIView):
         else:
             return Response({"error": "Failed to fetch statistics data"}, 
                             status=response.status_code)
+
+class MatchEventsView(APIView):
+    def get(self, request, fixture_id):
+        url = f"https://v3.football.api-sports.io/fixtures/events?fixture={fixture_id}"
+        headers = {
+            'x-rapidapi-host': 'v3.football.api-sports.io',
+            'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
+        }
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            events_data = response.json()['response']
+            fixture = Match.objects.get(fixture_id=fixture_id)
+
+            serialized_data = []
+            for event in events_data:
+                time_data = event['time']
+                team_id = event['team']['id']
+                team_name = event['team']['name']
+                logo = event['team']['logo']
+                player_id = event['player']['id']
+                player_name = event['player']['name']
+                assist_id = event['assist']
+                assist_name = event['assist']['name']
+                type = event['type']
+                detail = event['detail']
+                comments = event['comments']
+                
+
+                event_stats = MatchesEvents.objects.create(
+                    fixture_id=fixture,
+                    time=time_data,
+                    team_id=team_id,
+                    team_name=team_name,
+                    logo=logo,
+                    player_id=player_id,
+                    player_name=player_name,
+                    assist_id = assist_id,
+                    assist_name = assist_name,
+                    type = type,
+                    detail = detail,
+                    comments = comments,
+
+                )
+
+                serializer = MatchEventsSerializer(event_stats)
+                serialized_data.append(serializer.data)
+
+            return Response(serialized_data)
+        else:
+            return Response({"error": "Failed to fetch event data"}, status=response.status_code)
