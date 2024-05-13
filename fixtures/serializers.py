@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Fixtures, FixtureStats
+from .models import Fixtures, FixtureStats, FixturesEvents
 
 class FixturesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -10,4 +10,9 @@ class FixturesSerializer(serializers.ModelSerializer):
 class FixtureStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = FixtureStats
+        fields = '__all__'
+
+class FixturesEventsSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = FixturesEvents
         fields = '__all__'

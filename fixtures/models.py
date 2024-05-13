@@ -36,3 +36,11 @@ class FixtureStats(models.Model):
     
 
 
+class FixturesEvents(models.Model):
+    fixture_id = models.ForeignKey(Fixtures, on_delete=models.CASCADE)
+    time = models.CharField(max_length=100)
+    team_id = models.IntegerField()
+    team_name = models.CharField(max_length=100)
+    logo = models.URLField()
+    player_id = models.IntegerField()
+    player_name = models.CharField(max_length=100)

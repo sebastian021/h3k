@@ -1,9 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import requests
-from .models import Fixtures, FixtureStats
+from .models import Fixtures, FixtureStats, FixturesEvents
 from django.core.exceptions import ObjectDoesNotExist
-from .serializers import FixturesSerializer, FixtureStatsSerializer
+from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers
 class FixturesAPIView(APIView):
     def get(self, request, year, league, round):
         desired_league_ids = {
@@ -109,3 +109,44 @@ class FixtureStatistics(APIView):
         else:
             return Response({"error": "Failed to fetch statistics data"}, 
                             status=response.status_code)
+
+
+
+class FixtureEvents(APIView):
+    def get(self, request, fixture_id):
+        url = f"https://v3.football.api-sports.io/fixtures/events?fixture={fixture_id}"
+        headers = {
+            'x-rapidapi-host': 'v3.football.api-sports.io',
+            'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
+        }
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            events_data = response.json()['response']
+            fixture = Fixtures.objects.get(fixture_id=fixture_id)
+
+            serialized_data = []
+            for event in events_data:
+                time_data = event['time']
+                team_id = event['team']['id']
+                team_name = event['team']['name']
+                logo = event['team']['logo']
+                player_id = event['player']['id']
+                player_name = event['player']['name']
+
+                event_stats = FixturesEvents.objects.create(
+                    fixture_id=fixture,
+                    time=time_data,
+                    team_id=team_id,
+                    team_name=team_name,
+                    logo=logo,
+                    player_id=player_id,
+                    player_name=player_name
+                )
+
+                serializer = FixturesEventsSerializers(event_stats)
+                serialized_data.append(serializer.data)
+
+            return Response(serialized_data)
+        else:
+            return Response({"error": "Failed to fetch event data"}, status=response.status_code)
