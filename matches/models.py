@@ -50,3 +50,17 @@ class MatchesEvents(models.Model):
     type = models.CharField(max_length=100, blank=True, null=True)
     detail = models.CharField(max_length=100, blank=True, null=True)
     comments = models.CharField(max_length=100, blank=True, null=True)
+
+
+class MatchesLineUps(models.Model):
+    fixture_id = models.ForeignKey(Match, on_delete=models.CASCADE)
+    team_id = models.IntegerField(blank=True, null=True)
+    team_name = models.CharField(max_length=100, blank=True, null=True)
+    logo = models.URLField(blank=True, null=True)
+    team_color = models.JSONField(blank=True, null=True)
+    coach_id = models.IntegerField(blank=True, null=True)
+    coach_name = models.CharField(max_length=100, blank=True, null=True)
+    coach_photo = models.URLField(blank=True, null=True)
+    formation = models.CharField(max_length=100, blank=True, null=True)
+    startXI = models.JSONField(blank=True, null=True)
+    substitutes = models.JSONField(max_length=100, blank=True, null=True)

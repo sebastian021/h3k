@@ -1,9 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import requests
-from .models import Fixtures, FixtureStats, FixturesEvents
+from .models import Fixtures, FixtureStats, FixturesEvents, FixturesLineUps
 from django.core.exceptions import ObjectDoesNotExist
-from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers
+from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers, FixturesLineUpSerializers
 class FixturesAPIView(APIView):
     def get(self, request, year, league, round):
         desired_league_ids = {
@@ -162,3 +162,56 @@ class FixtureEvents(APIView):
             return Response(serialized_data)
         else:
             return Response({"error": "Failed to fetch event data"}, status=response.status_code)
+        
+
+
+
+class FixturesLineUpView(APIView):
+    def get(self, request, fixture_id):
+        url = f"https://v3.football.api-sports.io/fixtures/lineups?fixture={fixture_id}"
+        headers = {
+            'x-rapidapi-host': 'v3.football.api-sports.io',
+            'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
+        }
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            lineup_data = response.json()['response']
+            fixture = Fixtures.objects.get(fixture_id=fixture_id)
+
+            serialized_data = []
+            for lineup in lineup_data:
+                team_id = lineup['team']['id']
+                team_name = lineup['team']['name']
+                logo = lineup['team']['logo']
+                team_color = lineup['team']['colors']
+                coach_id = lineup['coach']['id']
+                coach_name = lineup['coach']['name']
+                coach_photo = lineup['coach']['photo']
+                formation = lineup['formation']
+                startXI = lineup['startXI']
+                substitutes = lineup['substitutes']
+                
+
+                lineup = FixturesLineUps.objects.create(
+                    fixture_id=fixture,
+                    team_id=team_id,
+                    team_name=team_name,
+                    logo=logo,
+                    team_color=team_color,
+                    coach_id = coach_id,
+                    coach_name = coach_name,
+                    coach_photo = coach_photo,
+                    formation = formation,
+                    startXI = startXI,
+                    substitutes = substitutes
+
+                )
+
+                serializer = FixturesLineUpSerializers(lineup)
+                serialized_data.append(serializer.data)
+
+            return Response(serialized_data)
+        else:
+            return Response({"error": "Failed to fetch event data"}, status=response.status_code)
+        
