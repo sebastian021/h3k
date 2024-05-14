@@ -1,9 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import requests
-from .models import Fixtures, FixtureStats, FixturesEvents, FixturesLineUps
+from .models import Fixtures, FixtureStats, FixturesEvents, FixturesLineUps, FixturesPlayerStats
 from django.core.exceptions import ObjectDoesNotExist
-from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers, FixturesLineUpSerializers
+from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers, FixturesLineUpSerializers, FixturesPlayerStatSerializers
+import json
+
 class FixturesAPIView(APIView):
     def get(self, request, year, league, round):
         desired_league_ids = {
@@ -214,4 +216,49 @@ class FixturesLineUpView(APIView):
             return Response(serialized_data)
         else:
             return Response({"error": "Failed to fetch event data"}, status=response.status_code)
-        
+
+
+
+class FixturesPlayersStatsView(APIView):
+    def get(self, request, fixture_id):
+        url = f"https://v3.football.api-sports.io/fixtures/players?fixture={fixture_id}"
+        headers = {
+            'x-rapidapi-host': 'v3.football.api-sports.io',
+            'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
+        }
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            player_stats = response.json()['response']
+            fixture = Fixtures.objects.get(fixture_id=fixture_id)
+
+            serialized_data = []
+            for stats in player_stats:
+                team_id = stats['team']['id']
+                team_name = stats['team']['name']
+                logo = stats['team']['logo']
+                update = stats['team']['update']
+                for player_info in stats['players']:
+                    player_id = player_info['player']['id']
+                    player_name = player_info['player']['name']
+                    player_photo = player_info['player']['photo']
+                    player_statistics = player_info['statistics']
+
+
+                    player = FixturesPlayerStats.objects.create(
+                        fixture_id=fixture,
+                        team_id=team_id,
+                        team_name=team_name,
+                        logo=logo,
+                        update=update,
+                        player_id=player_id,
+                        player_name=player_name,
+                        player_photo=player_photo,
+                        player_statistics=json.dumps(player_statistics),
+                    )
+                    serializer = FixturesPlayerStatSerializers(player)
+                    serialized_data.append(serializer.data)
+
+            return Response(serialized_data)
+        else:
+            return Response({"error": "Failed to fetch event data"}, status=response.status_code)

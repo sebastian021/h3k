@@ -1,5 +1,5 @@
 from rest_framework import serializers 
-from .models import Match, MatchStats, MatchesEvents, MatchesLineUps
+from .models import Match, MatchStats, MatchesEvents, MatchesLineUps, MatchesPlayerStats
 
 class MatchSerializer(serializers.ModelSerializer): 
     class Meta: 
@@ -20,3 +20,8 @@ class MatchesLineUpSerializers(serializers.ModelSerializer):
     class Meta:
         model = MatchesLineUps
         fields = '__all__'
+
+class MatchPlayerStatSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = MatchesPlayerStats
+        fields = '__all__'       

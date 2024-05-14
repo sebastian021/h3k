@@ -63,3 +63,16 @@ class FixturesLineUps(models.Model):
     formation = models.CharField(max_length=100, blank=True, null=True)
     startXI = models.JSONField(blank=True, null=True)
     substitutes = models.JSONField(max_length=100, blank=True, null=True)
+
+
+
+class FixturesPlayerStats(models.Model):
+    fixture_id = models.ForeignKey(Fixtures, on_delete=models.CASCADE)
+    team_id = models.IntegerField(blank=True, null=True)
+    team_name = models.CharField(max_length=100, blank=True, null=True)
+    logo = models.URLField(blank=True, null=True)
+    update = models.CharField(max_length=100, blank=True, null=True)
+    player_id = models.IntegerField(blank=True, null=True)
+    player_name = models.CharField(max_length=100, blank=True, null=True)
+    player_photo = models.URLField(blank=True, null=True)
+    player_statistics = models.JSONField(blank=True, null=True)
