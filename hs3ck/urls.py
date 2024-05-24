@@ -8,7 +8,8 @@ urlpatterns = [
     path('matches/', include('matches.urls')),
     path('news/', include('news.urls')),
     path('tables/', include('tables.urls')),
-    path('fixtures/', include('fixtures.urls'))
+    path('fixtures/', include('fixtures.urls')),
+    path('<str:league>/teams/', include('teams.urls'))
 
 ]
 
