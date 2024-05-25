@@ -14,6 +14,11 @@ class ImageAdmin(admin.ModelAdmin):
     list_filter = ('publish' , 'status')
     ordering = ['status', 'publish']
 
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ('video', 'publish', 'status')
+    list_filter = ('publish' , 'status')
+    ordering = ['status', 'publish']
+
 admin.site.register(News, NewsAdmin)
 admin.site.register(UploadImage, ImageAdmin )
-admin.site.register(UploadedVideo, )
+admin.site.register(UploadedVideo, VideoAdmin)
