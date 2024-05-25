@@ -49,6 +49,7 @@ class UploadImage(models.Model):
     updated = models.DateTimeField(auto_now=True, verbose_name = 'تاریخ ویرایش')
     publish = models.DateTimeField(default=timezone.now, verbose_name = 'تاریخ انتشار')
     status = models.CharField(max_length=60, choices = STATUS_CHOICES , default= 'draft', verbose_name = 'وضعیت')
+
 @receiver(post_save, sender=UploadImage)
 def generate_thumbnails(sender, instance, created, **kwargs):
     if created:
@@ -56,7 +57,16 @@ def generate_thumbnails(sender, instance, created, **kwargs):
 
 
 class UploadedVideo(models.Model):
+    STATUS_CHOICES =(
+        ('draft' , 'آماده انتشار'),
+        ('published', 'منتشر شده'),
+    )
     video = models.FileField(upload_to='videos/')
+    created = models.DateTimeField(auto_now_add=True, null=True, verbose_name = 'تاریخ ثبت ')
+    updated = models.DateTimeField(auto_now=True, verbose_name = 'تاریخ ویرایش')
+    publish = models.DateTimeField(default=timezone.now, verbose_name = 'تاریخ انتشار')
+    status = models.CharField(max_length=60, choices = STATUS_CHOICES , default= 'draft', verbose_name = 'وضعیت')
+    
 
 def __str__(self):
     return self.video.name    
