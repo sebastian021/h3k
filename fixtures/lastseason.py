@@ -1,4 +1,5 @@
 import requests
+from datetime import date
 
 headers = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2' }
 
@@ -12,3 +13,10 @@ def get_year():
     year = res['year']
     
     return year
+
+
+
+def get_today_date():
+  """Returns today's date in YYYY-MM-DD format."""
+  today = date.today()
+  return today.strftime("%Y-%m-%d")
