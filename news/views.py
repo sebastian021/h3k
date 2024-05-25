@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from .models import News, UploadImage
-from .serializers import NewsSerializer , ImageSerializer
+from .serializers import NewsSerializer , ImageSerializer, VideoSerializer
 from rest_framework import generics
 
 
@@ -16,4 +16,8 @@ class NewsDetail(generics.RetrieveAPIView):
 class ImageViewSet(viewsets.ModelViewSet):
     queryset = UploadImage.objects.all()
     serializer_class = ImageSerializer
+
+class ImageViewSet(viewsets.ModelViewSet):
+    queryset = UploadImage.objects.all()
+    serializer_class = VideoSerializer
 
