@@ -6,36 +6,49 @@ from .serializers import MatchSerializer, MatchStatsSerializer, MatchEventsSeria
 import requests
 import re
 import json
-
+from fixtures.lastseason import get_today_date
 
 
 class MatchesAPIView(APIView):
-    def get(self, request, date):
-        desired_league_ids = [1, 2, 3, 4, 5, 6, 7, 9, 10, 13, 15, 16, 17, 18, 19, 25, 
-                              21, 29, 30, 31, 32, 33, 34, 35, 37, 39, 45, 46, 48, 61,
-                              78, 81, 94, 96, 98, 101, 135, 137, 140, 143, 203, 206, 
-                              253, 257, 290, 292, 294, 301, 302, 305, 307, 475, 480, 
-                              482, 495, 504, 528, 529, 531, 547, 556, 803, 804, 808, 
-                              1089, 1105,
-                        ]
+    def get(self, request, date=None):
+        desired_league_ids = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11,
+                              12, 13, 15, 16, 17, 18, 19, 20,
+                              21, 22, 23, 24, 25, 26, 27, 28,
+                              29, 30, 31, 32, 33, 34, 35, 36,
+                              37, 39, 45, 46, 48, 61, 65, 66,
+                              71, 73, 78, 81, 88, 90, 94, 96,
+                              98, 101, 102, 128, 130, 135, 137,
+                              140, 143, 203, 206, 253, 257, 290,
+                              291, 292, 294, 301, 302, 305, 307,
+                              480, 482, 483, 495, 504, 528, 529,
+                              531, 532, 533, 541, 543, 547, 548,
+                              550, 551, 556, 803, 804, 808, 810,
+                              826, 896, 905, 1089, 1105,
+                            ]
 
-        # Use regex to extract the date from the URL
-        pattern = r'\d{4}-\d{2}-\d{2}'
-        match = re.search(pattern, date)
-        if match:
-            # Extract the date from the match object
-            date_str = match.group(0)
-            # Make a request to the API with the date as a parameter
-            url = 'https://v3.football.api-sports.io/fixtures'
-            headers = {
-                'x-rapidapi-host': 'v3.football.api-sports.io',
-                'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
-            }
-            params = {'date': date_str}
-            response = requests.get(url, headers=headers, params=params)
-            data = response.json()
-            # Process the data and filter by league id
-            matches = data['response']
+        # If date is not provided, use today's date
+        if date is None:
+            date_str = get_today_date()
+        else:
+            # Use regex to extract the date from the URL
+            pattern = r'\d{4}-\d{2}-\d{2}'
+            match = re.search(pattern, date)
+            if match:
+                date_str = match.group(0)
+            else:
+                return Response({'error': 'Invalid date format.'}, status=400)
+
+        # Make a request to the API with the date as a parameter
+        url = 'https://v3.football.api-sports.io/fixtures'
+        headers = {
+            'x-rapidapi-host': 'v3.football.api-sports.io',
+            'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
+        }
+        params = {'date': date_str}
+        response = requests.get(url, headers=headers, params=params)
+        data = response.json()
+        # Process the data and filter by league id
+        matches = data['response']
         filtered_matches = [] 
         for match in matches: 
             if match['league']['id'] in desired_league_ids: 
@@ -74,6 +87,7 @@ class MatchesAPIView(APIView):
                     away_team_name=selected_match_data['away_team_name'],
                     defaults=selected_match_data
                 )
+
                 if not created:
                     # Update the existing match instance with the new data
                     for key, value in selected_match_data.items():
