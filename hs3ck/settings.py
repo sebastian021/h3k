@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'news',
     'tables',
     'fixtures',
-    'teams'
+    'teams',
 ]
 
 REST_FRAMEWORK = {
@@ -55,8 +55,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=1),
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=525600),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=365),
     "TOKEN_OBTAIN_SERIALIZER": "users.serializers.CustomTokenObtainPairSerializer",
 
 }
