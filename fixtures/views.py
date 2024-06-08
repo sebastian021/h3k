@@ -5,6 +5,7 @@ from .models import Fixtures, FixtureStats, FixturesEvents, FixturesLineUps, Fix
 from django.core.exceptions import ObjectDoesNotExist
 from .serializers import FixturesSerializer, FixtureStatsSerializer, FixturesEventsSerializers, FixturesLineUpSerializers, FixturesPlayerStatSerializers
 import json
+from fixtures.lastseason import get_year
 
 class FixturesAPIView(APIView):
     def get(self, request, year, league, round):
@@ -19,7 +20,9 @@ class FixturesAPIView(APIView):
         league_id = desired_league_ids.get(league)
         if league_id is None:
             return Response({"error": "Invalid league"}, status=400)
-        
+        if not season:
+            # Default to current season
+            season = get_year()
         headers = {
             'x-rapidapi-host': 'v3.football.api-sports.io',
             'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2'
