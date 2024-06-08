@@ -18,3 +18,10 @@ class TeamStatistics(models.Model):
     penalty = models.JSONField(max_length=100, blank=True, null=True)
     lineups = models.JSONField(max_length=100, blank=True, null=True)
     cards = models.JSONField(max_length=100, blank=True, null=True)
+
+
+class PlayersInformation(models.Model):
+    team_id=models.ForeignKey(TeamInformation, on_delete=models.CASCADE)
+    season = models.IntegerField(blank=True, null=True)
+    player = models.JSONField(blank=True, null=True)
+    statistics = models.JSONField(max_length=100, blank=True, null=True)
