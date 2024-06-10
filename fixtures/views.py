@@ -8,7 +8,7 @@ import json
 from fixtures.lastseason import get_year
 
 class FixturesAPIView(APIView):
-    def get(self, request, year, league, round):
+    def get(self, request, round, league, season=None):
         desired_league_ids = {
             'PremierLeague': 39,
             'Bundesliga': 78,
@@ -29,7 +29,7 @@ class FixturesAPIView(APIView):
         }
         round_param = f"Regular Season - {round}"
         params = {
-            'season': year,
+            'season': season,
             'round': round_param,
             'league': league_id
         }
