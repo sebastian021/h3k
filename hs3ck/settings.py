@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'tables',
     'fixtures',
     'teams',
+    'leagues',
 ]
 
 REST_FRAMEWORK = {
