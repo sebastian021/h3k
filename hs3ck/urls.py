@@ -9,7 +9,8 @@ urlpatterns = [
     path('', include('news.urls')),
     path('tables/', include('tables.urls')),
     path('fixtures/', include('fixtures.urls')),
-    path('<str:league>/teams/', include('teams.urls'))
+    path('<str:league>/teams/', include('teams.urls')),
+    path('leagues/', include('leagues.urls')),
 
 ]
 
