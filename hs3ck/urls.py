@@ -5,12 +5,9 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
-    path('matches/', include('matches.urls')),
     path('', include('news.urls')),
     path('tables/', include('tables.urls')),
-    path('fixtures/', include('fixtures.urls')),
-    path('<str:league>/teams/', include('teams.urls')),
-    path('leagues/', include('leagues.urls')),
+    path('leagues/', include('league.urls')),
 
 ]
 

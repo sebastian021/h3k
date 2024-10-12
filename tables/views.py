@@ -3,7 +3,7 @@ from .models import Standing
 from .serializers import StandingSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from fixtures.lastseason import get_year
+from league.last import get_year
 def fetch_and_save_standings(league_name, season=None):
     desired_league_ids = {
         'PremierLeague': 39,

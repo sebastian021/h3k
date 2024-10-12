@@ -15,9 +15,11 @@ from rest_framework.routers import DefaultRouter
 from .views import TagViewSet, NewsViewSet, CommentViewSet, ImageViewSet, VideoViewSet
 
 router = DefaultRouter()
-router.register(r'tags', TagViewSet)
-router.register(r'news', NewsViewSet)
-router.register(r'comments', CommentViewSet)
+router.register(r'tags', TagViewSet, basename='tags')
+router.register(r'comments', CommentViewSet, basename='comments')
+router.register(r'images', ImageViewSet, basename='images')
+router.register(r'videos', VideoViewSet, basename='videos')
+router.register(r'news', NewsViewSet, basename='news')
 
 urlpatterns = [
     path('', include(router.urls)),

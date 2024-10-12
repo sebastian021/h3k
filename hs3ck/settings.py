@@ -41,12 +41,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'users',
     'rest_framework_simplejwt.token_blacklist',
-    'matches',
     'news',
     'tables',
-    'fixtures',
-    'teams',
-    'leagues',
+    'league',
 ]
 
 REST_FRAMEWORK = {

@@ -1,18 +1,16 @@
 from django.db import models
 from users.models import User
 from django.utils import timezone
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 from django.utils.text import slugify
 from unidecode import unidecode
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from .utils import create_thumbnails
 from users.models import User
 
 
 class Tag(models.Model):
     name = models.CharField(max_length=100)
-    
-
     def __str__(self):
         return self.name
 

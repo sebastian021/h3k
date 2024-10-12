@@ -9,6 +9,8 @@ class TagViewSet(viewsets.ModelViewSet):
 class NewsViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all()
     serializer_class = NewsSerializer
+    lookup_field = 'slug'  # Use slug as the lookup field
+    lookup_url_kwarg = 'slug'  # Use slug as the URL keyword argument
 
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
