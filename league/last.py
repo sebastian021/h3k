@@ -2,6 +2,8 @@ import requests
 from datetime import date
 
 accheaders = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2' }
+
+
 myleague_ids = {
    "WorldCup" : 1,
    "UEFAChampionsLeague" : 2,

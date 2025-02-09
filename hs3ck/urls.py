@@ -7,7 +7,7 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('', include('news.urls')),
     path('tables/', include('tables.urls')),
-    path('leagues/', include('league.urls')),
+    path('league/', include('league.urls')),
 
 ]
 

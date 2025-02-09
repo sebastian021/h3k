@@ -93,26 +93,6 @@ WSGI_APPLICATION = 'hs3ck.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-'''
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ha3_db',
-        'USER': 'ha3_db_user',
-        'PASSWORD': 'BcX44BVQ7ZWemUhr2JiJ86Ssp6I7iYYu',
-        'HOST': 'dpg-co8ptvn109ks73ej0d1g-a.singapore-postgres.render.com',
-        'PORT': 5432,
-        'OPTIONS': {
-            'sslmode': 'require',  # Set the SSL mode to require
-            'sslrootcert': '/path/to/root.crt',  # Path to the root certificate file
-            'sslcert': '/path/to/client.crt',  # Path to the client certificate file
-            'sslkey': '/path/to/client.key',  # Path to the client private key file
-        }
-    }
-}
-
-
-'''
 DATABASES = {
     'default' : dj_database_url.parse(env('DATABASE_URL'))
 }

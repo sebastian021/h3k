@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-    
-class Leagues(models.Model):
+
+class League(models.Model):
     league_id = models.IntegerField(primary_key=True)
     league_name = models.CharField(max_length=500, blank=True, null=True) 
     league_enName = models.CharField(max_length=500, blank=True, null=True) 
@@ -9,23 +9,17 @@ class Leagues(models.Model):
     league_type = models.CharField(max_length=50, blank=True, null=True)
     league_logo = models.URLField(blank=True, null=True)
     league_country = models.JSONField()
+    league_faCountry = models.CharField(max_length=500, blank=True, null=True)
     league_country_flag = models.URLField(blank=True, null=True)
 
     def __str__(self):
         return self.league_name
-    
 
 class Season(models.Model):
-    league = models.ForeignKey(Leagues, on_delete=models.CASCADE)
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
     year = models.IntegerField()
-    start = models.DateField()
-    end = models.DateField()
 
-
-
-class LeagueTeams(models.Model):
-    league_id = models.ForeignKey(Leagues, on_delete=models.CASCADE)
-    season = models.ManyToManyField(Season)
+class Team(models.Model):
     team_id = models.IntegerField(primary_key=True)
     team_name = models.CharField(max_length=500, blank=True, null=True)
     team_faName = models.CharField(max_length=500, blank=True, null=True)
@@ -36,9 +30,17 @@ class LeagueTeams(models.Model):
     team_founded = models.IntegerField(blank=True, null=True)
     team_national = models.BooleanField(default=False)
     venue = models.JSONField()
-    
+
     def __str__(self):
         return self.team_name
+
+class TeamLeague(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('team', 'league', 'season')  # Ensure a team can only be linked to a league in a specific season once
     
 
 
@@ -55,7 +57,7 @@ class Coach(models.Model):
     nationality = models.CharField(max_length=500, blank=True, null=True)
     faNationality = models.CharField(max_length=500, blank=True, null=True)
     photo = models.URLField(blank=True, null=True)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     career = models.JSONField(blank=True, null=True)
 
     def __str__(self):
@@ -117,7 +119,7 @@ class Player(models.Model):
     penaltyScored = models.IntegerField(blank=True, null=True)
     penaltyMissed = models.IntegerField(blank=True, null=True)
     penaltySaved = models.IntegerField(blank=True, null=True)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     season = models.ForeignKey(Season, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -125,10 +127,11 @@ class Player(models.Model):
     
 
 class Fixture(models.Model):
-    league = models.ForeignKey(Leagues, on_delete=models.CASCADE, related_name='fixtures')
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='fixtures')
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='fixtures')
     fixture_id = models.IntegerField(primary_key=True, unique=True)
     fixture_referee = models.CharField(max_length=250, blank=True, null=True)
+    fixture_faReferee = models.CharField(max_length=250, blank=True, null=True)
     fixture_timestamp = models.IntegerField()
     fixture_periods_first = models.IntegerField(null=True)
     fixture_periods_second = models.IntegerField(null=True)
@@ -139,10 +142,11 @@ class Fixture(models.Model):
     fixture_status_long = models.CharField(max_length=250, blank=True, null=True)
     fixture_status_short = models.CharField(max_length=250, blank=True, null=True)
     fixture_status_elapsed = models.CharField(max_length=250, blank=True, null=True)
+    fixture_status_extra = models.CharField(max_length=250, blank=True, null=True)
     league_round = models.CharField(max_length=100)
-    teams_home = models.ForeignKey(LeagueTeams, blank=True, null=True, on_delete=models.CASCADE, related_name='home_fixtures')
+    teams_home = models.ForeignKey(Team, blank=True, null=True, on_delete=models.CASCADE, related_name='home_fixtures')
     teams_home_winner = models.BooleanField(blank=True, null=True)
-    teams_away = models.ForeignKey(LeagueTeams, blank=True, null=True, on_delete=models.CASCADE, related_name='away_fixtures')
+    teams_away = models.ForeignKey(Team, blank=True, null=True, on_delete=models.CASCADE, related_name='away_fixtures')
     teams_away_winner = models.BooleanField(blank=True, null=True)
     goals = models.JSONField(max_length=250, blank=True, null=True)
     score_halftime = models.JSONField(max_length=250, blank=True, null=True)
@@ -150,10 +154,19 @@ class Fixture(models.Model):
     score_extratime = models.JSONField(max_length=250, blank=True, null=True)
     score_penalty = models.JSONField(max_length=250, blank=True, null=True)
 
+class FixtureRound(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+    rounds = models.JSONField()  # Store the rounds as a JSON field
+
+    def __str__(self):
+        return f"{self.league} - {self.season.year}"
+    
+
 
 class FixtureStat(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     ShotsOnGoal = models.IntegerField(blank=True, null=True)
     ShotsOffGoal = models.IntegerField(blank=True, null=True)
     ShotsInsideBox = models.IntegerField(blank=True, null=True)
@@ -179,7 +192,7 @@ class FixtureStat(models.Model):
 
 class FixtureEvent(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE, null=True, blank=True)
     assist = models.ForeignKey(Player, on_delete=models.CASCADE, null=True, blank=True, related_name='assist_player')
     type = models.CharField(max_length=50)
@@ -196,7 +209,7 @@ class FixtureEvent(models.Model):
 
 class FixtureLineup(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     team_color = models.JSONField(blank=True, null=True)
     coach = models.ForeignKey(Coach, on_delete=models.CASCADE, null=True, blank=True)
     formation = models.CharField(max_length=50)
@@ -210,7 +223,7 @@ class FixtureLineup(models.Model):
 
 class FixturePlayer(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
-    team = models.ForeignKey(LeagueTeams, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     minutes = models.IntegerField(null=True, blank=True)
     rating = models.FloatField(null=True, blank=True)
@@ -245,4 +258,4 @@ class FixturePlayer(models.Model):
     penalty_saved = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.fixture.fixture_id} - {self.team.team_name} - {self.player.name}"
+        return f"{self.fixture.fixture_id} - {self.team.team} - {self.player.name}"
