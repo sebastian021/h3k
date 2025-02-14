@@ -44,6 +44,37 @@ class TeamLeague(models.Model):
     
 
 
+class TeamStat(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    form = models.CharField(max_length=500, blank=True, null=True)
+    fixtures_played_home = models.IntegerField(default=0)
+    fixtures_played_away = models.IntegerField(default=0)
+    fixtures_played_total = models.IntegerField(default=0)
+    wins_home = models.IntegerField(default=0)
+    wins_away = models.IntegerField(default=0)
+    wins_total = models.IntegerField(default=0)
+    draws_home = models.IntegerField(default=0)
+    draws_away = models.IntegerField(default=0)
+    draws_total = models.IntegerField(default=0)
+    losses_home = models.IntegerField(default=0)
+    losses_away = models.IntegerField(default=0)
+    losses_total = models.IntegerField(default=0)
+    goals_for_home = models.IntegerField(default=0)
+    goals_for_away = models.IntegerField(default=0)
+    goals_for_total = models.IntegerField(default=0)
+    goals_against_home = models.IntegerField(default=0)
+    goals_against_away = models.IntegerField(default=0)
+    goals_against_total = models.IntegerField(default=0)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.team.team_name} - {self.season.year} - {self.league.league_name}"
+
+
+
+
 class Coach(models.Model):
     coach_id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=500, blank=True, null=True)
@@ -259,3 +290,28 @@ class FixturePlayer(models.Model):
 
     def __str__(self):
         return f"{self.fixture.fixture_id} - {self.team.team} - {self.player.name}"
+    
+
+
+
+class Table(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    rank = models.IntegerField()
+    points = models.IntegerField()
+    goals_diff = models.IntegerField()
+    group = models.CharField(max_length=100)
+    form = models.CharField(max_length=50)
+    status = models.CharField(max_length=500, blank=True, null=True)
+    description = models.CharField(max_length=500, blank=True, null=True)
+    played = models.IntegerField()
+    win = models.IntegerField()
+    draw = models.IntegerField()
+    lose = models.IntegerField()
+    goals_for = models.IntegerField()
+    goals_against = models.IntegerField()
+    last_update = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.team.team_name} - {self.season.year} - {self.league.league_name}"

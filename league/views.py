@@ -7,8 +7,8 @@ from datetime import datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import requests
-from .models import League, Season, Team, TeamLeague, Coach, Player, Fixture, FixtureRound, FixtureStat, FixtureEvent, FixtureLineup, FixturePlayer
-from .serializers import LeagueSerializer, TeamSerializer, CoachSerializer, PlayerSerializer, FixtureSerializer, FixtureStatSerializer, FixtureEventSerializer, FixtureLineupSerializer, FixturePlayerSerializer, FixtureH2HSerializer
+from .models import League, Season, Team, TeamLeague, TeamStat, Coach, Player, Fixture, FixtureRound, FixtureStat, FixtureEvent, FixtureLineup, FixturePlayer, Table
+from .serializers import LeagueSerializer, TeamSerializer, TeamStatSerializer, CoachSerializer, PlayerSerializer, FixtureSerializer, FixtureStatSerializer, FixtureEventSerializer, FixtureLineupSerializer, FixturePlayerSerializer, FixtureH2HSerializer, TableSerializer
 from .last import accheaders, myleague_ids, get_year, get_today_date
 from urllib.parse import unquote
 
@@ -189,6 +189,78 @@ class TeamView(APIView):
             return Response(serializer.data)
         else:
             return Response({"error": "Failed to fetch team data"}, status=response.status_code)
+
+
+
+class TeamStatView(APIView):
+    
+    def get(self, request, league, team_id, season):
+        # Check if league exists in myleague_ids
+        league_id = myleague_ids.get(league)
+        if league_id is None:
+            return Response({"error": "Invalid league"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if league exists in the database
+        if not League.objects.filter(league_id=league_id).exists():
+            league_response = LeagueView().fetch_league_data_from_api(league_id)
+            if league_response.status_code != 200:
+                return league_response  # Return the error response from LeagueView
+
+        # Check if the team stat exists for the league and season
+        try:
+            team_stat = TeamStat.objects.get(league_id=league_id, season__year=season, team_id=team_id)
+            serializer = TeamStatSerializer(team_stat)
+            return Response(serializer.data)
+        except TeamStat.DoesNotExist:
+            return self.get_team_stat_from_api(league_id, team_id, season)
+
+    def get_team_stat_from_api(self, league_id, team_id, season):
+        url = f'https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}'
+        headers = accheaders
+        
+        try:
+            response = requests.get(url, headers =headers)
+            if response.status_code == 200:
+                data = response.json()
+                # Save the data to TeamStat model
+                self.save_team_stat(data, league_id, team_id, season)
+                return Response(data, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Failed to fetch data from API"}, status=response.status_code)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def save_team_stat(self, data, league_id, team_id, season):
+        # Extract relevant data from the API response
+        team_stat_data = {
+            'league_id': league_id,
+            'team_id': team_id,
+            'season_id': season,
+            'form': data['form'],
+            'fixtures_played_home': data['fixtures']['played']['home'],
+            'fixtures_played_away': data['fixtures']['played']['away'],
+            'fixtures_played_total': data['fixtures']['played']['total'],
+            'wins_home': data['wins']['home'],
+            'wins_away': data['wins']['away'],
+            'wins_total': data['wins']['total'],
+            'draws_home': data['draws']['home'],
+            'draws_away': data['draws']['away'],
+            'draws_total': data['draws']['total'],
+            'losses_home': data['loses']['home'],
+            'losses_away': data['loses']['away'],
+            'losses_total': data['loses']['total'],
+            'goals_for_home': data['goals']['for']['total']['home'],
+            'goals_for_away': data['goals']['for']['total']['away'],
+            'goals_for_total': data['goals']['for']['total']['total'],
+            'goals_against_home': data['goals']['against']['total']['home'],
+            'goals_against_away': data['goals']['against']['total']['away'],
+            'goals_against_total': data['goals']['against']['total']['total'],
+        }
+        TeamStat.objects.create(**team_stat_data)
+
+
+
+
 
 class CoachView(APIView):
     def get(self, request, team_id):
@@ -1603,3 +1675,156 @@ class FixtureDateView(APIView):
         for team_id in team_ids:
             if not Team.objects.filter(team_id=team_id).exists():
                 TeamView().get_teams_from_api(None, league_id, season_year)
+
+
+
+
+
+
+
+class TableView(APIView):
+    
+    def get(self, request, league, season=None):
+        # Check if league exists in myleague_ids
+        league_id = myleague_ids.get(league)
+        if league_id is None:
+            return Response({"error": "Invalid league"}, status=status.HTTP_400_BAD_REQUEST)
+        if season is None:
+                season = str(get_year())
+        # Check if league exists in the database
+        if not League.objects.filter(league_id=league_id).exists():
+            league_response = LeagueView().fetch_league_data_from_api(league_id)
+            if league_response.status_code != 200:
+                return league_response  # Return the error response from LeagueView
+
+        # Check if the table exists for the league and season
+        if Table.objects.filter(league_id=league_id, season__year=season).exists():
+            table_data = Table.objects.filter(league_id=league_id, season__year=season)
+            serializer = TableSerializer(table_data, many=True)
+            return Response(serializer.data)
+
+        # If table does not exist, fetch from API
+        return self.get_table_from_api(league_id, season)
+    def get_table_from_api(self, league_id, season):
+        url = f'https://v3.football.api-sports.io/standings?league={league_id}&season={season}'
+        headers = accheaders
+        
+        try:
+            response = requests.get(url, headers=headers)
+            data = response.json()  # Get the full response
+            # Check if 'response' key exists
+            if 'response' not in data or not data['response']:
+                return Response({"error": "No data found in response"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Iterate through each league data in the response
+            for league_data in data['response']:
+                standings = league_data['league']['standings']  # Get the standings for this league
+
+                with transaction.atomic():
+                    for group_standings in standings:  # Iterate through each group of standings
+                        for entry in group_standings:  # Iterate through each entry in the group
+                            team_id = entry['team']['id']
+                            
+                            # Check if team exists
+                            if not Team.objects.filter(team_id=team_id).exists():
+                                # If team does not exist, fetch teams
+                                TeamView().get_teams_from_api(None, league_id, season)
+
+                            # Now that we are sure the team exists, save the table entry
+                            team = Team.objects.get(team_id=team_id)
+                            table_entry = Table(
+                                league=League.objects.get(league_id=league_id),
+                                season=Season.objects.get(league_id=league_id, year=season),
+                                team=team,
+                                rank=entry['rank'],
+                                points=entry['points'],
+                                goals_diff=entry['goalsDiff'],
+                                group=entry['group'],
+                                form=entry['form'],
+                                status=entry['status'],
+                                description=entry.get('description', ''),  # Handle potential null values
+                                played=entry['all']['played'],
+                                win=entry['all']['win'],
+                                draw=entry['all']['draw'],
+                                lose=entry['all']['lose'],
+                                goals_for=entry['all']['goals']['for'],
+                                goals_against=entry['all']['goals']['against'],
+                                last_update=entry['update']
+                            )
+                            table_entry.save()
+
+            # Return the newly created table data
+            table_data = Table.objects.filter(league_id=league_id, season__year=season)
+            serializer = TableSerializer(table_data, many=True)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except requests.exceptions.RequestException as e:
+            return Response({"error": "Failed to fetch table data: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"error": "An error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+    # def get_table_from_api(self, league_id, season):
+    #     url = f'https://v3.football.api-sports.io/standings?league={league_id}&season={season}'
+    #     headers = accheaders
+        
+    #     try:
+    #         response = requests.get(url, headers=headers)
+    #         response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
+    #         data = response.json()  # Get the full response
+
+    #         # Log the response for debugging
+    #         print("API Response:", data)
+
+    #         # Check if 'response' and 'standings' keys exist
+    #         if 'response' not in data or not data['response']:
+    #             return Response({"error": "No data found in response"}, status=status.HTTP_404_NOT_FOUND)
+
+    #         league_data = data['response'][0]['league']  # Get the first response item
+    #         standings = league_data['standings'][0]  # Get the first standings array
+
+    #         with transaction.atomic():
+    #             for entry in standings:
+    #                 team_id = entry['team']['id']
+                    
+    #                 # Check if team exists
+    #                 if not Team.objects.filter(team_id=team_id).exists():
+    #                     # If team does not exist, fetch teams
+    #                     TeamView().get_teams_from_api(None, league_id, season)
+
+    #                 # Now that we are sure the team exists, save the table entry
+    #                 team = Team.objects.get(team_id=team_id)
+    #                 table_entry = Table(
+    #                     league=League.objects.get(league_id=league_id),
+    #                     season=Season.objects.get(league_id=league_id, year=season),
+    #                     team=team,
+    #                     rank=entry['rank'],
+    #                     points=entry['points'],
+    #                     goals_diff=entry['goalsDiff'],
+    #                     group=entry['group'],
+    #                     form=entry['form'],
+    #                     status=entry['status'],
+    #                     description=entry['description'],
+    #                     played =entry['all']['played'],
+    #                     win=entry['all']['win'],
+    #                     draw=entry['all']['draw'],
+    #                     lose=entry['all']['lose'],
+    #                     goals_for=entry['all']['goals']['for'],
+    #                     goals_against=entry['all']['goals']['against'],
+    #                     last_update=entry['update']
+    #                 )
+    #                 table_entry.save()
+
+    #         # Return the newly created table data
+    #         table_data = Table.objects.filter(league_id=league_id, season__year=season)
+    #         serializer = TableSerializer(table_data, many=True)
+    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    #     except requests.exceptions.RequestException as e:
+    #         return Response({"error": "Failed to fetch table data: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #     except Exception as e:
+    #         return Response({"error": "An error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

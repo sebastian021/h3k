@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import League, Season, Team , TeamLeague, Player, Fixture, FixtureStat , FixtureEvent, Coach, FixtureLineup, FixturePlayer
+from .models import League, Season, Team , TeamStat, Player, Fixture, FixtureStat , FixtureEvent, Coach, FixtureLineup, FixturePlayer, Table
 
 class LeagueSerializer(serializers.ModelSerializer):
     seasons = serializers.SerializerMethodField()
@@ -28,6 +28,22 @@ class TeamNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = ['team_name', 'team_faName', 'team_logo']
+
+
+class TeamStatSerializer(serializers.ModelSerializer):
+    team = TeamNameSerializer()  # Use the existing TeamNameSerializer
+
+    class Meta:
+        model = TeamStat
+        fields = [
+            'team', 'form', 'fixtures_played_home', 'fixtures_played_away', 
+            'fixtures_played_total', 'wins_home', 'wins_away', 'wins_total', 
+            'draws_home', 'draws_away', 'draws_total', 'losses_home', 
+            'losses_away', 'losses_total', 'goals_for_home', 'goals_for_away', 
+            'goals_for_total', 'goals_against_home', 'goals_against_away', 
+            'goals_against_total', 'last_update'
+        ]
+
 
 
 
@@ -197,3 +213,12 @@ class FixtureH2HSerializer(serializers.ModelSerializer):
     def get_league_faName(self, obj):
         return obj.league.league_faName if obj.league else None
 
+class TableSerializer(serializers.ModelSerializer):
+    team = TeamNameSerializer()  # Use the existing TeamNameSerializer
+
+    class Meta:
+        model = Table
+        fields = ['team', 'rank', 'points', 'goals_diff', 
+                  'group', 'form', 'status', 'description', 'played', 
+                  'win', 'draw', 'lose', 'goals_for', 'goals_against', 'last_update']
+        
