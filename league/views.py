@@ -193,72 +193,107 @@ class TeamView(APIView):
 
 
 class TeamStatView(APIView):
-    
-    def get(self, request, league, team_id, season):
-        # Check if league exists in myleague_ids
-        league_id = myleague_ids.get(league)
-        if league_id is None:
-            return Response({"error": "Invalid league"}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, league_id, team_id, season=None):
+        # Check if season is provided, if not use get_year()
+        if not season:
+            season = get_year()
 
-        # Check if league exists in the database
+        # Check if league exists
         if not League.objects.filter(league_id=league_id).exists():
             league_response = LeagueView().fetch_league_data_from_api(league_id)
             if league_response.status_code != 200:
-                return league_response  # Return the error response from LeagueView
+                return league_response  # Return error response if league fetch fails
 
-        # Check if the team stat exists for the league and season
-        try:
-            team_stat = TeamStat.objects.get(league_id=league_id, season__year=season, team_id=team_id)
+        # Check if team exists
+        if not Team.objects.filter(team_id=team_id).exists():
+            team_response = TeamView().get_teams_from_api(request, league_id, season)
+            if team_response.status_code != 200:
+                return team_response  # Return error response if team fetch fails
+
+        # Check if season exists
+        season_instance = Season.objects.filter(year=season).first()
+        if not season_instance:
+            return Response({"error": "Season does not exist"}, status=400)
+
+        # Check if TeamStat already exists
+        team_stat = TeamStat.objects.filter(league_id=league_id, team_id=team_id, season=season_instance).first()
+        if team_stat:
             serializer = TeamStatSerializer(team_stat)
             return Response(serializer.data)
-        except TeamStat.DoesNotExist:
-            return self.get_team_stat_from_api(league_id, team_id, season)
+        else:
+            # Fetch statistics from the API
+            return self.fetch_team_statistics(league_id, team_id, season_instance)
 
-    def get_team_stat_from_api(self, league_id, team_id, season):
-        url = f'https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}'
+
+    def fetch_team_statistics(self, league_id, team_id, season):
+        url = f'https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season.year}&team={team_id}'
         headers = accheaders
-        
-        try:
-            response = requests.get(url, headers =headers)
-            if response.status_code == 200:
-                data = response.json()
-                # Save the data to TeamStat model
-                self.save_team_stat(data, league_id, team_id, season)
-                return Response(data, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Failed to fetch data from API"}, status=response.status_code)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response = requests.get(url, headers=headers)
 
-    def save_team_stat(self, data, league_id, team_id, season):
-        # Extract relevant data from the API response
-        team_stat_data = {
-            'league_id': league_id,
-            'team_id': team_id,
-            'season_id': season,
-            'form': data['form'],
-            'fixtures_played_home': data['fixtures']['played']['home'],
-            'fixtures_played_away': data['fixtures']['played']['away'],
-            'fixtures_played_total': data['fixtures']['played']['total'],
-            'wins_home': data['wins']['home'],
-            'wins_away': data['wins']['away'],
-            'wins_total': data['wins']['total'],
-            'draws_home': data['draws']['home'],
-            'draws_away': data['draws']['away'],
-            'draws_total': data['draws']['total'],
-            'losses_home': data['loses']['home'],
-            'losses_away': data['loses']['away'],
-            'losses_total': data['loses']['total'],
-            'goals_for_home': data['goals']['for']['total']['home'],
-            'goals_for_away': data['goals']['for']['total']['away'],
-            'goals_for_total': data['goals']['for']['total']['total'],
-            'goals_against_home': data['goals']['against']['total']['home'],
-            'goals_against_away': data['goals']['against']['total']['away'],
-            'goals_against_total': data['goals']['against']['total']['total'],
-        }
-        TeamStat.objects.create(**team_stat_data)
+        if response.status_code == 200:
+            data = response.json()
 
+            if 'response' not in data:
+                return Response({"error": "Invalid response structure from API"}, status=400)
 
+            response_data = data['response']
+
+            # Ensure the required keys exist in the response data
+            if 'league' not in response_data or 'team' not in response_data or 'fixtures' not in response_data:
+                return Response({"error": "Missing data in API response"}, status=400)
+
+            league_data = response_data['league']
+            team_data = response_data['team']
+            stats = response_data['fixtures']
+            
+            # Check if 'goals' key exists in stats
+            goals = response_data.get('goals', {})
+            
+            # Extract goals data safely
+            goals_for_total = goals.get('for', {}).get('total', {})
+            goals_against_total = goals.get('against', {}).get('total', {})
+
+            # Create or update TeamStat
+            team_stat, created = TeamStat.objects.update_or_create(
+                league=League.objects.get(league_id=league_data['id']),
+                team=Team.objects.get(team_id=team_data['id']),
+                season=season,
+                defaults={
+                    'form': response_data.get('form', None),
+                    'fixtures_played_home': stats['played'].get('home', 0),
+                    'fixtures_played_away': stats['played'].get('away', 0),
+                    'fixtures_played_total': stats['played'].get('total', 0),
+                    'wins_home': stats['wins'].get('home', 0),
+                    'wins_away': stats['wins'].get('away', 0),
+                    'wins_total': stats['wins'].get('total', 0),
+                    'draws_home': stats['draws'].get('home', 0),
+                    'draws_away': stats['draws'].get('away', 0),
+                    'draws_total': stats['draws'].get('total', 0),
+                    'losses_home': stats['loses'].get('home', 0),
+                    'losses_away': stats['loses'].get('away', 0),
+                    'losses_total': stats['loses'].get('total', 0),
+                    'goals_for_home': goals_for_total.get('home', 0),
+                    'goals_for_away': goals_for_total.get('away', 0),
+                    'goals_for_total': goals_for_total.get('total', 0),
+                    'goals_against_home': goals_against_total.get('home', 0),
+                    'goals_against_away': goals_against_total.get('away', 0),
+                    'goals_against_total': goals_against_total.get('total', 0),
+                    'clean_sheet_home': stats.get('clean_sheet', {}).get('home', 0),
+                    'clean_sheet_away': stats.get('clean_sheet', {}).get('away', 0),
+                    'clean_sheet_total': stats.get('clean_sheet', {}).get('total', 0),
+                    'failed_to_score_home': stats.get('failed_to_score', {}).get('home', 0),
+                    'failed_to_score_away': stats.get('failed_to_score', {}).get('away', 0),
+                    'failed_to_score_total': stats.get('failed_to_score', {}).get('total', 0),
+                    'penalties_scored_total': stats.get('penalty', {}).get('scored', {}).get('total', 0),
+                    'penalties_missed_total': stats.get('penalty', {}).get('missed', {}).get('total', 0),
+                }
+            )
+
+            # Return the data to the frontend
+            serializer = TeamStatSerializer(team_stat)
+            return Response(serializer.data)
+        else:
+            return Response({"error": "Failed to fetch team statistics"}, status=response.status_code)
 
 
 

@@ -45,32 +45,51 @@ class TeamLeague(models.Model):
 
 
 class TeamStat(models.Model):
-    league = models.ForeignKey(League, on_delete=models.CASCADE)
-    season = models.ForeignKey(Season, on_delete=models.CASCADE)
-    team = models.ForeignKey(Team, on_delete=models.CASCADE)
-    form = models.CharField(max_length=500, blank=True, null=True)
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='team_stats')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='team_stats')
+    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='team_stats')
+
+    form = models.CharField(max_length=50, null=True, blank=True)
+
     fixtures_played_home = models.IntegerField(default=0)
     fixtures_played_away = models.IntegerField(default=0)
     fixtures_played_total = models.IntegerField(default=0)
+    
     wins_home = models.IntegerField(default=0)
     wins_away = models.IntegerField(default=0)
     wins_total = models.IntegerField(default=0)
+    
     draws_home = models.IntegerField(default=0)
     draws_away = models.IntegerField(default=0)
     draws_total = models.IntegerField(default=0)
+    
     losses_home = models.IntegerField(default=0)
     losses_away = models.IntegerField(default=0)
     losses_total = models.IntegerField(default=0)
+    
     goals_for_home = models.IntegerField(default=0)
     goals_for_away = models.IntegerField(default=0)
     goals_for_total = models.IntegerField(default=0)
+
     goals_against_home = models.IntegerField(default=0)
     goals_against_away = models.IntegerField(default=0)
     goals_against_total = models.IntegerField(default=0)
+
+    clean_sheet_home = models.IntegerField(default=0)
+    clean_sheet_away = models.IntegerField(default=0)
+    clean_sheet_total = models.IntegerField(default=0)
+
+    failed_to_score_home = models.IntegerField(default=0)
+    failed_to_score_away = models.IntegerField(default=0)
+    failed_to_score_total = models.IntegerField(default=0)
+
+    penalties_scored_total = models.IntegerField(default=0)
+    penalties_missed_total = models.IntegerField(default=0)
+
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.team.team_name} - {self.season.year} - {self.league.league_name}"
+        return f"{self.team.team_name} Stats for {self.season.year} in {self.league.league_name}"
 
 
 
