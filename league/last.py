@@ -62,7 +62,7 @@ myleague_ids = {
    "LigaProfesionalArgentina" : 128,
    "CopaArgentina" : 130,
    "SerieA" : 135,
-   "Coppa Italia" : 137,
+   "CoppaItalia" : 137,
    "Laliga" : 140,
    "CopaDelRey" : 143,
    "TurkeySuperLig" : 203,

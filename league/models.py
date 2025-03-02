@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 class League(models.Model):
     league_id = models.IntegerField(primary_key=True)
-    league_name = models.CharField(max_length=500, blank=True, null=True) 
+    symbol = models.CharField(max_length=500, blank=True, null=True) 
     league_enName = models.CharField(max_length=500, blank=True, null=True) 
     league_faName = models.CharField(max_length=500, blank=True, null=True) 
     league_type = models.CharField(max_length=50, blank=True, null=True)

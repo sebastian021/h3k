@@ -6,7 +6,7 @@ class LeagueSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = League
-        fields = ['league_id', 'league_name', 'league_enName', 'league_faName', 'league_type', 'league_logo', 'league_country', 'league_faCountry', 'league_country_flag', 'seasons']
+        fields = ['league_id', 'symbol', 'league_enName', 'league_faName', 'league_type', 'league_logo', 'league_country', 'league_faCountry', 'league_country_flag', 'seasons']
 
     def get_seasons(self, obj):
         return SeasonSerializer(obj.season_set.select_related('league').all(), many=True).data
@@ -15,8 +15,6 @@ class SeasonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Season
         fields = ['year']
-
-from rest_framework import serializers
 
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
