@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.validators import MinValueValidator
 
 class League(models.Model):
     league_id = models.IntegerField(primary_key=True)
@@ -13,7 +14,7 @@ class League(models.Model):
     league_country_flag = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return self.league_name
+        return self.league_enName
 
 class Season(models.Model):
     league = models.ForeignKey(League, on_delete=models.CASCADE)
@@ -89,7 +90,7 @@ class TeamStat(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.team.team_name} Stats for {self.season.year} in {self.league.league_name}"
+        return f"{self.team.team_name} Stats for {self.season.year} in {self.league.league_enName}"
 
 
 
@@ -116,6 +117,20 @@ class Coach(models.Model):
 
 
 class Player(models.Model):
+    POSITION_CHOICES = [
+        ('Goalkeeper', 'Goalkeeper'),
+        ('Defender', 'Defender'),
+        ('Midfielder', 'Midfielder'),
+        ('Attacker', 'Attacker'),
+        (None, 'Unknown'),
+    ]
+    POS_MAP = {
+        "G": "Goalkeeper",
+        "D": "Defender",
+        "M": "Midfielder",
+        "F": "Attacker"
+    }
+
     player_id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=500)
     faName = models.CharField(max_length=500, blank=True, null=True)
@@ -130,51 +145,105 @@ class Player(models.Model):
     height = models.CharField(max_length=50, blank=True, null=True)
     weight = models.CharField(max_length=50, blank=True, null=True)
     injured = models.BooleanField(default=False)
-    photo = models.URLField(blank=True, null=True)
-    appearences = models.IntegerField(blank=True, null=True)
-    lineups = models.IntegerField(blank=True, null=True)
-    minutes = models.IntegerField(blank=True, null=True)
     number = models.IntegerField(blank=True, null=True)
-    position = models.CharField(max_length=50, blank=True, null=True)
-    grid = models.CharField(max_length=50, blank=True, null=True)
-    rating = models.FloatField(blank=True, null=True)
-    captain = models.BooleanField(default=False)
-    substitutesIn = models.IntegerField(blank=True, null=True)
-    substitutesOut = models.IntegerField(blank=True, null=True)
-    bench = models.IntegerField(blank=True, null=True)
-    shotsTotal = models.IntegerField(blank=True, null=True)
-    shotsOn = models.IntegerField(blank=True, null=True)
-    goalsTotal = models.IntegerField(blank=True, null=True)
-    goalsConceded = models.IntegerField(blank=True, null=True)
-    assists = models.IntegerField(blank=True, null=True)
-    saves = models.IntegerField(blank=True, null=True)
-    passTotal = models.IntegerField(blank=True, null=True)
-    passKey = models.IntegerField(blank=True, null=True)
-    passAccuracy = models.FloatField(blank=True, null=True)
-    tacklesTotal = models.IntegerField(blank=True, null=True)
-    blocks = models.IntegerField(blank=True, null=True)
-    interceptions = models.IntegerField(blank=True, null=True)
-    duelsTotal = models.IntegerField(blank=True, null=True)
-    duelsWon = models.IntegerField(blank=True, null=True)
-    dribbleAttempts = models.IntegerField(blank=True, null=True)
-    dribbleSuccess = models.IntegerField(blank=True, null=True)
-    dribblePast = models.IntegerField(blank=True, null=True)
-    foulsDrawn = models.IntegerField(blank=True, null=True)
-    foulsCommitted = models.IntegerField(blank=True, null=True)
-    cardsYellow = models.IntegerField(blank=True, null=True)
-    cardsYellowRed = models.IntegerField(blank=True, null=True)
-    cardsRed = models.IntegerField(blank=True, null=True)
-    penaltyWon = models.IntegerField(blank=True, null=True)
-    penaltyCommited = models.IntegerField(blank=True, null=True)
-    penaltyScored = models.IntegerField(blank=True, null=True)
-    penaltyMissed = models.IntegerField(blank=True, null=True)
-    penaltySaved = models.IntegerField(blank=True, null=True)
-    team = models.ForeignKey(Team, on_delete=models.CASCADE)
-    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+    position = models.CharField(max_length=50, choices=POSITION_CHOICES, blank=True, null=True)
+    photo = models.URLField(blank=True, null=True)
+
+    def set_position_from_short(self, pos_short):
+        self.position = self.POS_MAP.get(pos_short, None)
 
     def __str__(self):
         return self.name
+
+class PlayerTeam(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    team = models.ForeignKey('Team', on_delete=models.CASCADE)
+    season = models.ForeignKey('Season', on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('player', 'team', 'season')
+
+    def __str__(self):
+        return f"{self.player.name} - {self.team.name} ({self.season.year})"
+
+class Squad(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='squads')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='squads')
+
+    class Meta:
+        unique_together = ('player', 'team')  # Ensure unique combination of player and team
+
+    def __str__(self):
+        return f"{self.player.name} in {self.team.team_name}"
     
+
+
+class PlayerStat(models.Model):
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='player_stats')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE)
+    league = models.ForeignKey('League', on_delete=models.CASCADE)
+    season = models.IntegerField(validators=[MinValueValidator(1900)])
+    
+    # Game statistics
+    appearances = models.IntegerField(default=0, null=True)
+    lineups = models.IntegerField(default=0, null=True)
+    minutes_played = models.IntegerField(default=0, null=True)
+    rating = models.FloatField(null=True, blank=True)
+    captain = models.BooleanField(default=False)
+    
+    # Substitution details
+    substitutesIn = models.IntegerField(default=0, null=True)
+    substitutesOut = models.IntegerField(default=0, null=True)
+    bench = models.IntegerField(default=0, null=True)
+    
+    # Goal-related stats
+    assists = models.IntegerField(default=0, null=True)
+    goalsTotal = models.IntegerField(default=0, null=True)
+    goalsConceded = models.IntegerField(default=0, null=True)
+    saves = models.IntegerField(default=0, null=True)
+    
+    # Shooting stats
+    shotsTotal = models.IntegerField(default=0, null=True)
+    shotsOn = models.IntegerField(default=0, null=True)
+    
+    # Passing stats
+    passTotal = models.IntegerField(default=0, null=True)
+    passKey = models.IntegerField(default=0, null=True)
+    passAccuracy = models.FloatField(null=True, blank=True)
+    
+    # Defensive stats
+    tacklesTotal = models.IntegerField(default=0, null=True)
+    blocks = models.IntegerField(default=0, null=True)
+    interceptions = models.IntegerField(default=0, null=True)
+    
+    # Duels and dribbling
+    duelsTotal = models.IntegerField(default=0, null=True)
+    duelsWon = models.IntegerField(default=0, null=True)
+    dribbleAttempts = models.IntegerField(default=0, null=True)
+    dribbleSuccess = models.IntegerField(default=0, null=True)
+    dribblePast = models.IntegerField(default=0, null=True)
+    
+    # Fouls and cards
+    foulsDrawn = models.IntegerField(default=0, null=True)
+    foulsCommitted = models.IntegerField(default=0, null=True)
+    cardsYellow = models.IntegerField(default=0, null=True)
+    cardsYellowRed = models.IntegerField(default=0, null=True)
+    cardsRed = models.IntegerField(default=0, null=True)
+    
+    # Penalty stats
+    penaltyWon = models.IntegerField(default=0, null=True)
+    penaltyCommited = models.IntegerField(default=0, null=True)
+    penaltyScored = models.IntegerField(default=0, null=True)
+    penaltyMissed = models.IntegerField(default=0, null=True)
+    penaltySaved = models.IntegerField(default=0, null=True)
+
+    class Meta:
+        unique_together = ['player', 'team', 'league', 'season']
+
+    def __str__(self):
+        return f"{self.player.name} - {self.team.team_name} - {self.season}"
+
+
 
 class Fixture(models.Model):
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='fixtures')
@@ -260,16 +329,23 @@ class FixtureEvent(models.Model):
 class FixtureLineup(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
-    team_color = models.JSONField(blank=True, null=True)
-    coach = models.ForeignKey(Coach, on_delete=models.CASCADE, null=True, blank=True)
-    formation = models.CharField(max_length=50)
-    start_xi = models.ManyToManyField(Player, related_name='start_xi', blank=True)
-    substitutes = models.ManyToManyField(Player, related_name='substitutes', blank=True)
+    team_color = models.JSONField(null=True, blank=True)
+    coach = models.ForeignKey(Coach, on_delete=models.SET_NULL, null=True)
+    formation = models.CharField(max_length=20)
 
     def __str__(self):
-        return f"{self.fixture.fixture_id} - {self.team.team_name}"
-    
+        return f"{self.team.team_name} ({self.fixture.fixture_id})"
 
+class FixtureLineupPlayer(models.Model):
+    fixture_lineup = models.ForeignKey(FixtureLineup, on_delete=models.CASCADE, related_name='lineup_players')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    is_starting = models.BooleanField()  # True for startXI, False for substitutes
+    pos = models.CharField(max_length=2, null=True, blank=True)  # "G", "D", "M", "F"
+    grid = models.CharField(max_length=10, null=True, blank=True)
+    number = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.player.name} ({'XI' if self.is_starting else 'Sub'})"
 
 class FixturePlayer(models.Model):
     fixture = models.ForeignKey(Fixture, on_delete=models.CASCADE)
@@ -279,6 +355,9 @@ class FixturePlayer(models.Model):
     rating = models.FloatField(null=True, blank=True)
     captain = models.BooleanField(default=False)
     substitute = models.BooleanField(default=False)
+    number = models.IntegerField(null=True, blank=True)  # <-- add this
+    position = models.CharField(max_length=10, null=True, blank=True)  # <-- add this
+    offsides = models.IntegerField(null=True, blank=True)  # <-- add this
     shots_total = models.IntegerField(null=True, blank=True)
     shots_on = models.IntegerField(null=True, blank=True)
     goals_total = models.IntegerField(null=True, blank=True)
@@ -308,8 +387,7 @@ class FixturePlayer(models.Model):
     penalty_saved = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.fixture.fixture_id} - {self.team.team} - {self.player.name}"
-    
+        return f"{self.fixture.fixture_id} - {self.team.team_name} - {self.player.name}"
 
 
 
@@ -333,4 +411,18 @@ class Table(models.Model):
     last_update = models.DateTimeField()
 
     def __str__(self):
-        return f"{self.team.team_name} - {self.season.year} - {self.league.league_name}"
+        return f"{self.team.team_name} - {self.season.year} - {self.league.league_enName}"
+    
+
+
+
+class Transfer(models.Model):
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='transfers')  # Link to Player model
+    team_in = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='incoming_transfers')  # Team the player is coming to
+    team_out = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='outgoing_transfers')  # Team the player is leaving
+    transfer_date = models.DateField()
+    transfer_type = models.CharField(max_length=50, null=True, blank=True)  # e.g., "Loan", "Transfer", etc.
+    update_time = models.DateTimeField(auto_now=True)  # To track when the transfer was last updated
+
+    def __str__(self):
+        return f"{self.player.name} transfer to {self.team_in.team_name} from {self.team_out.team_name} on {self.transfer_date}"

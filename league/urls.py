@@ -1,36 +1,32 @@
 from django.urls import path, re_path
-from .views import LeagueListView, LeagueView, TeamView, TeamStatView, CoachView, PlayerView, FixtureView, FixtureRoundView, FixtureRoundFaView, FixtureDateView, FixtureStatView, FixtureEventView, FixtureLineupView, FixturePlayerView, FixtureH2H, TableView
+from .views import *
 
 
 urlpatterns = [
     path('SupportedLeagues', LeagueListView.as_view(), name='league_list'),
-    path('<str:league>', LeagueView.as_view(), name='league_data'),
-    path('teams/<str:league>', TeamView.as_view(), name='teams'),
-    path('teams/<str:league>/<int:season>', TeamView.as_view(), name='teams'),
-    path('team-stat/<int:league_id>/<int:team_id>/<int:season>/', TeamStatView.as_view(), name='team-stat'),
-    path('team-stat/<int:league_id>/<int:team_id>', TeamStatView.as_view(), name='team-stat'),
-    path('coaches/team/<int:team_id>', CoachView.as_view(), name='coach'),
-    path('players/<str:league>/<int:team_id>', PlayerView.as_view(), name='player-list'),
-    path('players/<str:league>/<int:team_id>/<int:season>', PlayerView.as_view(), name='player-list-season'),
-    path('fixtures/<str:league>/<int:season>', FixtureView.as_view(), name='all_fixtures_by_year'),
-    path('fixtures/<str:league>/', FixtureView.as_view(), name='all_fixtures'),
-    path('fixtures/<str:league>/<str:season>/<str:fixture_round>/', FixtureRoundView.as_view(), name='fixture-rounds'),
-    path('fixtures/<str:league>/<str:fixture_round>/', FixtureRoundView.as_view(), name='fixture-rounds'),
-    
-    re_path(
-        r'^fixtures/fa/(?P<league>[\w-]+)/(?P<season>\d{4})/(?P<fixture_round_fa>.+)$', 
-        FixtureRoundFaView.as_view(), 
-        name='fixture-round-fa'
-    ),
-
-    re_path(
-        r'^fixtures/fa/(?P<league>[\w-]+)/(?P<fixture_round_fa>.+)$', 
-        FixtureRoundFaView.as_view(), 
-        name='fixture-round-fa'
-    ),    
-
-
-
+    path('<int:league_id>', LeagueView.as_view(), name='league_data'),
+    path('teams/<int:league_id>', TeamView.as_view(), name='league_teams'),
+    path('teams/<int:league_id>/<int:season>', TeamView.as_view(), name='league_teams_season'),
+    path('team/<int:team_id>', TeamIDView.as_view(), name='team_by_id'),
+    path('teamStat/<int:league_id>/<int:team_id>/<int:season>', TeamStatView.as_view(), name='team_stat_by_season'),
+    path('teamStat/<int:league_id>/<int:team_id>', TeamStatView.as_view(), name='team_stat'),
+    path('team/coaches/<int:team_id>', CoachView.as_view(), name='coach'),
+    path('players/<int:team_id>', PlayerView.as_view(), name='team_players_list'),
+    path('players/<int:team_id>/<int:season>', PlayerView.as_view(), name='team_player_list_season'),
+    path('player/profile/<int:player_id>', PlayerProfileView.as_view(), name='player-profile'),
+    path('players/squad/<int:team_id>', SquadView.as_view(), name='squad_view'),
+    path('player-stats/<int:player_id>', PlayerStatView.as_view(), name='player-stats'),
+    path('player-stats/<int:player_id>/<int:season>', PlayerStatView.as_view(), name='player-stats-with-season'),
+    path('fixtures/<int:league_id>/<int:season>', FixtureView.as_view(), name='all_fixtures_by_year'),
+    path('fixtures/<int:league_id>/', FixtureView.as_view(), name='all_fixtures'),
+    path('fixture-rounds/EN/<int:league_id>/<int:season>', FixtureRoundKeysView.as_view(), name='fixture_round_keys'),
+    path('fixture-rounds/EN/<int:league_id>', FixtureRoundKeysView.as_view(), name='fixture_round_keys'),    
+    path('fixture-rounds/FA/<int:league_id>/<int:season>', FixtureRoundValuesView.as_view(), name='fixture_round_values'),
+    path('fixture-rounds/FA/<int:league_id>', FixtureRoundValuesView.as_view(), name='fixture_round_values'),
+    path('fixtures/EN/<int:league_id>/<str:season>/<str:fixture_round>', FixtureRoundENView.as_view(), name='fixture-rounds'),
+    path('fixtures/EN/<int:league_id>/<str:fixture_round>', FixtureRoundENView.as_view(), name='fixture-rounds'),
+    path('fixtures/FA/<int:league_id>/<int:season>/<str:fixture_round_fa>/', FixtureRoundFaView.as_view(), name='fixture-round-fa'),
+    path('fixtures/FA/<int:league_id>/<str:fixture_round_fa>/', FixtureRoundFaView.as_view(), name='fixture-round-fa-no-season'),
     path('fixtures/stats/match/<int:fixture_id>', FixtureStatView.as_view(), name='fixture_stats'),
     path('fixtures/events/match/<int:fixture_id>', FixtureEventView.as_view(), name='events'),
     path('fixtures/lineup/match/<int:fixture_id>', FixtureLineupView.as_view(), name='lineup'),
@@ -38,6 +34,19 @@ urlpatterns = [
     path('fixtures/h2h/match/<int:fixture_id>', FixtureH2H.as_view(), name='head_to_head'),
     path('fixtures/date', FixtureDateView.as_view(), name='fixture-date'),
     path('fixtures/date/<str:date>', FixtureDateView.as_view(), name='fixture-date-with-date'),
-    path('tables/<str:league>/<str:season>', TableView.as_view(), name='table_by_season'),
+    path('tables/<str:league>/<int:season>', TableView.as_view(), name='table_by_season'),
     path('tables/<str:league>', TableView.as_view(), name='current_table'),
+    path('topScore/<int:league_id>/<int:season>', TopScoreView.as_view(), name='topScore_by_season'),
+    path('topScore/<int:league_id>', TopScoreView.as_view(), name='topScore'),
+    path('topAssist/<int:league_id>/<int:season>', TopAssistView.as_view(), name='topScore_by_season'),
+    path('topAssist/<int:league_id>', TopAssistView.as_view(), name='topScore'),
+    path('topYellowCards/<int:league_id>/<int:season>', TopYellowCardView.as_view(), name='topYellow_by_season'),
+    path('topYellowCards/<int:league_id>', TopYellowCardView.as_view(), name='topYellow'),
+    path('topRedCards/<int:league_id>/<int:season>/', TopRedCardView.as_view(), name='topRed_by_season'),
+    path('topRedCards/<int:league_id>', TopRedCardView.as_view(), name='topRed_by_season'),  
+    path('transfers/TeamIn/<int:team_id>', TransfersTeamInView.as_view(), name='Transfers_Team_In'),
+    path('transfers/TeamOut/<int:team_id>', TransfersTeamOutView.as_view(), name='Transfers_Team_Out'),
+    path('transfers/TeamLoanIn/<int:team_id>', TransfersTeamLoanInView.as_view(), name='Transfers_Team_Out_Loan_In'),
+    path('transfers/TeamLoanOut/<int:team_id>', TransfersTeamLoanOutView.as_view(), name='Transfers_Team_Out_Loan_In'),
+    path('transfers/Player/<int:player_id>', TransfersPlayerView.as_view(), name='Transfers_By_Playe'), 
     ]

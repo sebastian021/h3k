@@ -1,7 +1,8 @@
 import requests
 from datetime import date
 
-accheaders = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': '027bd46abc28e9a53c6789553b53f2d2' }
+accheaders = { 'x-rapidapi-host': 'v3.football.api-sports.io', 'x-rapidapi-key': '0f91d060dda9e6880c80e07176b0809e' }
+
 
 
 myleague_ids = {
