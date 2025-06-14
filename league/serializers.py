@@ -10,6 +10,14 @@ class LeagueSerializer(serializers.ModelSerializer):
     def get_seasons(self, obj):
         return SeasonSerializer(obj.season_set.select_related('league').all(), many=True).data
 
+
+
+class LeagueNameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = League
+        fields = ['symbol', 'league_faName', 'league_logo']
+
+
 class SeasonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Season
@@ -172,47 +180,28 @@ class PlayerStatSerializer(serializers.ModelSerializer):
         ]
 
 class FixtureSerializer(serializers.ModelSerializer):
-    league = serializers.SerializerMethodField()
+    league = LeagueNameSerializer()
     season = serializers.SerializerMethodField()
     teams_home = TeamNameSerializer()
     teams_away = TeamNameSerializer()
 
     class Meta:
         model = Fixture
-        fields = ['league', 'season', 'fixture_id', 'fixture_referee', 
-                  'fixture_faReferee', 'fixture_timestamp', 'fixture_periods_first', 
-                  'fixture_periods_second', 'fixture_venue_name', 'fixture_venue_faName', 
-                  'fixture_venue_city', 'fixture_venue_faCity', 'fixture_status_long', 
-                  'fixture_status_short', 'fixture_status_elapsed', 'league_round', 
-                  'teams_home', 'teams_home_winner', 'teams_away', 'teams_away_winner', 
-                  'goals', 'score_halftime', 'score_fulltime', 'score_extratime', 'score_penalty']
-
-    def get_league(self, obj):
-        return {
-            'id': obj.league.league_id,
-            'name': obj.league.symbol,
-            'faName': obj.league.league_faName,
-            'logo': obj.league.league_logo  # Add the league_logo here
-        }
+        fields = [
+            'league', 'season', 'fixture_id', 'fixture_referee', 
+            'fixture_faReferee', 'fixture_timestamp', 'fixture_periods_first', 
+            'fixture_periods_second', 'fixture_venue_name', 'fixture_venue_faName', 
+            'fixture_venue_city', 'fixture_venue_faCity', 'fixture_status_long', 
+            'fixture_status_short', 'fixture_status_elapsed', 'league_round', 
+            'teams_home', 'teams_home_winner', 'teams_away', 'teams_away_winner', 
+            'goals', 'score_halftime', 'score_fulltime', 'score_extratime', 'score_penalty'
+        ]
 
     def get_season(self, obj):
-        return {
-            'year': obj.season.year
-        }
+        return {'year': obj.season.year}
 
-    def get_teams_home(self, obj):
-        return {
-            'team_id': obj.teams_home.team_id,
-            'team_name': obj.teams_home.team_name,
-            'team_faName': obj.teams_home.team_faName,
-        }
 
-    def get_teams_away(self, obj):
-        return {
-            'team_id': obj.teams_away.team_id,
-            'team_name': obj.teams_away.team_name,
-            'team_faName': obj.teams_away.team_faName,
-        }
+
 
 
 
@@ -362,7 +351,7 @@ class FixtureH2HSerializer(serializers.ModelSerializer):
         ]
 
     def get_league_name(self, obj):
-        return obj.league.league_name if obj.league else None
+        return obj.league.league_enName if obj.league else None
 
     def get_league_faName(self, obj):
         return obj.league.league_faName if obj.league else None

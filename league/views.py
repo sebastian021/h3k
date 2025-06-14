@@ -958,60 +958,59 @@ class PlayerStatView(APIView):
 
 
 class FixtureView(APIView):
-    def get(self, request, league_id, season):
+    def get(self, request, league_id, season=None):
+        # Use current year if season is not provided
+        if season is None:
+            season = get_year()
         try:
-            # Get league and season instances
             league = League.objects.get(league_id=league_id)
             season_obj = Season.objects.get(league=league, year=season)
-            
-            # Get fixtures for this league and season
-            fixtures = Fixture.objects.filter(league=league, season=season_obj)
-            serializer = FixtureSerializer(fixtures, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
         except League.DoesNotExist:
             return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
         except Season.DoesNotExist:
             return Response({"error": "Season not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Get fixtures for this league and season
+        fixtures = Fixture.objects.filter(league=league, season=season_obj)
+        if fixtures.exists():
+            serializer = FixtureSerializer(fixtures, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            # If no fixtures, fetch from API, save, and return
+            return self.get_fixtures_from_api(league_id, season)
+
     def get_fixtures_from_api(self, league_id, season):
         try:
             url = f"https://v3.football.api-sports.io/fixtures?league={league_id}&season={season}"
             headers = accheaders
-            
+
             response = requests.get(url, headers=headers)
             response.raise_for_status()
             fixtures_data = response.json()['response']
-            
+
             # Ensure teams exist
             self.ensure_teams_exist(league_id, season, fixtures_data)
-            
+
             # Prepare translators
             translator = Translator()
-            
+
             # Prepare translation collections
             referee_translations = {}
             venue_name_translations = {}
             venue_city_translations = {}
             round_translations = {}
-            
+
             # Collect unique values for translation
             for fixture in fixtures_data:
-                # Handle referee translations
                 referee = fixture['fixture']['referee']
                 if referee:
                     referee_translations[referee] = "The " + str(referee)
-                
-                # Handle venue name translations
                 venue_name = fixture['fixture']['venue']['name']
                 if venue_name:
                     venue_name_translations[venue_name] = "The " + str(venue_name)
-                
-                # Handle venue city translations
                 venue_city = fixture['fixture']['venue']['city']
                 if venue_city:
                     venue_city_translations[venue_city] = "The " + str(venue_city)
-                
-                # Handle round translations
                 round_name = fixture['league']['round']
                 if round_name:
                     if 'Regular Season' in round_name:
@@ -1020,41 +1019,38 @@ class FixtureView(APIView):
                 else:
                     round_name = 'Unknown Round'
                     round_translations[round_name] = round_name
-            
+
             # Bulk translate
             referee_fa_translations = {
                 k: translator.translate(v, dest='fa').text 
                 for k, v in referee_translations.items()
             } if referee_translations else {}
-            
+
             venue_name_fa_translations = {
                 k: translator.translate(v, dest='fa').text 
                 for k, v in venue_name_translations.items()
             } if venue_name_translations else {}
-            
+
             venue_city_fa_translations = {
                 k: translator.translate(v, dest='fa').text 
                 for k, v in venue_city_translations.items()
             } if venue_city_translations else {}
-            
+
             round_fa_translations = {
                 k: translator.translate(str(k), dest='fa').text 
                 for k in round_translations
             } if round_translations else {}
-            
+
             # Create fixtures
             fixtures_to_create = []
             for fixture in fixtures_data:
-                # Modify round name
                 league_round = fixture['league']['round'] or 'Unknown Round'
                 if isinstance(league_round, str) and 'Regular Season' in league_round:
                     league_round = league_round.replace('Regular Season', 'week')
-                
-                # Get home and away teams
+
                 home_team = Team.objects.get(team_id=fixture['teams']['home']['id'])
                 away_team = Team.objects.get(team_id=fixture['teams']['away']['id'])
-                
-                # Create fixture object
+
                 fixture_obj = Fixture(
                     league_id=league_id,
                     season_id=Season.objects.get(league_id=league_id, year=season).id,
@@ -1084,30 +1080,30 @@ class FixtureView(APIView):
                     score_penalty=fixture['score']['penalty']
                 )
                 fixtures_to_create.append(fixture_obj)
-            
+
             # Bulk create fixtures
             with transaction.atomic():
                 Fixture.objects.bulk_create(fixtures_to_create)
-                
+
                 # Create or update FixtureRound
                 FixtureRound.objects.update_or_create(
                     league_id=league_id,
                     season_id=Season.objects.get(league_id=league_id, year=season).id,
                     defaults={'rounds': round_fa_translations}
                 )
-            
+
             # Retrieve and serialize fixtures
             fixtures = Fixture.objects.filter(
                 league_id=league_id, 
                 season__year=season
             )
             serializer = FixtureSerializer(fixtures, many=True)
-            
+
             return Response({
                 'fixtures': serializer.data,
                 'rounds': round_fa_translations
             })
-        
+
         except requests.exceptions.RequestException as e:
             return Response(
                 {"error": f"API request failed: {str(e)}"}, 
@@ -1125,13 +1121,13 @@ class FixtureView(APIView):
         for fixture in fixtures_data:
             team_ids.add(fixture['teams']['home']['id'])
             team_ids.add(fixture['teams']['away']['id'])
-        
+
         # Check which teams don't exist
         non_existent_teams = [
             team_id for team_id in team_ids 
             if not Team.objects.filter(team_id=team_id).exists()
         ]
-        
+
         # If there are non-existent teams, fetch them
         if non_existent_teams:
             team_view = TeamView()
@@ -1713,37 +1709,34 @@ class FixturePlayerView(APIView):
 
         serializer = FixturePlayerSerializer(players_to_create, many=True)
         return Response(serializer.data, status=201)
-            
+
+
+
+
+
+
 class FixtureH2H(APIView):
     def get(self, request, fixture_id):
         try:
-            # Check if the fixture exists in the database
             fixture = Fixture.objects.get(fixture_id=fixture_id)
             home_team_id = fixture.teams_home.team_id
             away_team_id = fixture.teams_away.team_id
-            
-            # Fetch all fixtures with the same home or away teams and status "FT"
+
             fixtures = Fixture.objects.filter(
                 (Q(teams_home_id=home_team_id) & Q(teams_away_id=away_team_id)) |
                 (Q(teams_home_id=away_team_id) & Q(teams_away_id=home_team_id)),
-                fixture_status_short="FT"  # Filter for fixtures with status "FT"
-            ).order_by('-fixture_timestamp')  # Sort by timestamp descending
+                fixture_status_short="FT"
+            ).order_by('-fixture_timestamp')
 
-            if len(fixtures) < 3:  # Check if there are fewer than 3 fixtures
+            if len(fixtures) < 3:
                 return self.fetch_h2h_from_api(home_team_id, away_team_id)
 
-            # Calculate summary
             final_summary, league_stats = self.calculate_summary(fixtures, fixture)
-
-            # Serialize fixtures
             serializer = FixtureH2HSerializer(fixtures, many=True)
-
-            # Combine summary and fixtures into one response
             response_data = {
                 "summary": final_summary,
                 "fixtures": serializer.data
             }
-
             return Response(response_data)
 
         except Fixture.DoesNotExist:
@@ -1752,7 +1745,7 @@ class FixtureH2H(APIView):
     def fetch_h2h_from_api(self, home_team_id, away_team_id):
         url = f"https://v3.football.api-sports.io/fixtures/headtohead?h2h={home_team_id}-{away_team_id}"
         headers = accheaders
-        
+
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
@@ -1761,32 +1754,37 @@ class FixtureH2H(APIView):
             fixtures_list = []
             for fixture_data in data:
                 league_id = fixture_data['league']['id']
-                season = fixture_data['fixture']['date'][:4]  # Extract year from the fixture date
+                season_year = fixture_data['league']['season']
 
-                # Check if league exists in the database
-                league, created = League.objects.get_or_create(
-                    league_id=league_id,
-                    defaults={
-                        'league_name': fixture_data['league']['name'],
-                        'league_logo': fixture_data['league']['logo'],
-                        'league_country': fixture_data['league']['country'],
-                    }
+                # Ensure league exists
+                league = League.objects.filter(league_id=league_id).first()
+                if not league:
+                    LeagueView().fetch_league_data_from_api(league_id)
+                    league = League.objects.filter(league_id=league_id).first()
+                    if not league:
+                        continue  # Skip if still not found
+
+                # Ensure season exists
+                season, _ = Season.objects.get_or_create(
+                    league=league,
+                    year=season_year,
                 )
 
-                # Check if season exists in the database
-                season, created = Season.objects.get_or_create(
-                    league=league,  # Associate with the league
-                    year=season,
-                )
+                # Ensure teams exist
+                home_id = fixture_data['teams']['home']['id']
+                away_id = fixture_data['teams']['away']['id']
+                for team_id in [home_id, away_id]:
+                    if not Team.objects.filter(team_id=team_id).exists():
+                        TeamIDView().fetch_team_from_api(team_id)
 
-                # Create or update fixture in the database
-                fixture_obj, created = Fixture.objects.update_or_create(
+                # Create or update fixture
+                fixture_obj, _ = Fixture.objects.update_or_create(
                     fixture_id=fixture_data['fixture']['id'],
                     defaults={
                         'league': league,
-                        'season': season,  # Ensure season is set here
-                        'teams_home_id': fixture_data['teams']['home']['id'],
-                        'teams_away_id': fixture_data['teams']['away']['id'],
+                        'season': season,
+                        'teams_home_id': home_id,
+                        'teams_away_id': away_id,
                         'goals': fixture_data['goals'],
                         'score_halftime': fixture_data['score']['halftime'],
                         'score_fulltime': fixture_data['score']['fulltime'],
@@ -1803,21 +1801,18 @@ class FixtureH2H(APIView):
                         'fixture_status_elapsed': fixture_data['fixture']['status']['elapsed'],
                     }
                 )
-
                 fixtures_list.append(fixture_obj)
 
-            # Sort fixtures by timestamp in descending order before serialization
             fixtures_list.sort(key=lambda x: x.fixture_timestamp, reverse=True)
+            if not fixtures_list:
+                return Response({"error": "No H2H fixtures found."}, status=404)
 
-            # Calculate summary for fetched fixtures
             final_summary, league_stats = self.calculate_summary(fixtures_list, fixtures_list[0])
-
             serializer = FixtureH2HSerializer(fixtures_list, many=True)
             response_data = {
                 "summary": final_summary,
                 "fixtures": serializer.data
             }
-
             return Response(response_data)
         except requests.exceptions.RequestException as e:
             return Response({"error": "Failed to fetch head-to-head data: " + str(e)}, status=500)
@@ -1825,7 +1820,6 @@ class FixtureH2H(APIView):
             return Response({"error": "An error occurred: " + str(e)}, status=500)
 
     def calculate_summary(self, fixtures, fixture):
-        # Initialize summary
         summary = {
             "total_fixtures": len(fixtures),
             "total_goals": 0,
@@ -1835,23 +1829,16 @@ class FixtureH2H(APIView):
             f"{fixture.teams_home.team_name} wins": 0,
             f"{fixture.teams_away.team_name} wins": 0,
         }
-
-        # Initialize league-specific statistics
         league_stats = {}
 
-        # Iterate over each fixture to calculate statistics
         for fixture in fixtures:
             home_goals = fixture.score_fulltime.get('home', 0) or 0
             away_goals = fixture.score_fulltime.get('away', 0) or 0
 
-            # Update total goals
             summary["total_goals"] += home_goals + away_goals
-
-            # Update home and away goals
             summary[f"{fixture.teams_home.team_name} goals"] += home_goals
             summary[f"{fixture.teams_away.team_name} goals"] += away_goals
 
-            # Determine wins and draws
             if home_goals > away_goals:
                 summary[f"{fixture.teams_home.team_name} wins"] += 1
             elif away_goals > home_goals:
@@ -1859,10 +1846,9 @@ class FixtureH2H(APIView):
             else:
                 summary["draws"] += 1
 
-            # Initialize league entry if not already present
-            league_name = fixture.league.league_name
-            if league_name not in league_stats:
-                league_stats[league_name] = {
+            league_id = fixture.league.league_id
+            if league_id not in league_stats:
+                league_stats[league_id] = {
                     "total_fixtures": 0,
                     "total_goals": 0,
                     f"{fixture.teams_home.team_name} goals": 0,
@@ -1872,20 +1858,18 @@ class FixtureH2H(APIView):
                     "draws": 0,
                 }
 
-            # Update league statistics
-            league_stats[league_name]["total_fixtures"] += 1
-            league_stats[league_name]["total_goals"] += home_goals + away_goals
-            league_stats[league_name][f"{fixture.teams_home.team_name} goals"] += home_goals
-            league_stats[league_name][f"{fixture.teams_away.team_name} goals"] += away_goals
+            league_stats[league_id]["total_fixtures"] += 1
+            league_stats[league_id]["total_goals"] += home_goals + away_goals
+            league_stats[league_id][f"{fixture.teams_home.team_name} goals"] += home_goals
+            league_stats[league_id][f"{fixture.teams_away.team_name} goals"] += away_goals
 
             if home_goals > away_goals:
-                league_stats[league_name ][f"{fixture.teams_home.team_name} wins"] += 1
+                league_stats[league_id][f"{fixture.teams_home.team_name} wins"] += 1
             elif away_goals > home_goals:
-                league_stats[league_name][f"{fixture.teams_away.team_name} wins"] += 1
+                league_stats[league_id][f"{fixture.teams_away.team_name} wins"] += 1
             else:
-                league_stats[league_name]["draws"] += 1
+                league_stats[league_id]["draws"] += 1
 
-        # Create the final summary dictionary
         final_summary = {
             "total_fixtures": summary["total_fixtures"],
             "total_goals": summary["total_goals"],
@@ -1896,272 +1880,153 @@ class FixtureH2H(APIView):
             f"{fixture.teams_away.team_name} wins": summary[f"{fixture.teams_away.team_name} wins"],
         }
 
-        # Add league-specific statistics to the final summary
-        for league_name, stats in league_stats.items():
-            final_summary[league_name] = {
-                "total_fixtures": stats["total_fixtures"],
-                "total_goals": stats["total_goals"],
-                f"{fixture.teams_home.team_name} goals": stats[f"{fixture.teams_home.team_name} goals"],
-                f"{fixture.teams_away.team_name} goals": stats[f"{fixture.teams_away.team_name} goals"],
-                f"{fixture.teams_home.team_name} wins": stats[f"{fixture.teams_home.team_name} wins"],
-                f"{fixture.teams_away.team_name} wins": stats[f"{fixture.teams_away.team_name} wins"],
-                "draws": stats ["draws"],
-            }
+        for league_id, stats in league_stats.items():
+            final_summary[f"league_{league_id}"] = stats
 
         return final_summary, league_stats
+    
 
 
 
 
-# class FixtureDateView(APIView):
-#     def get(self, request, date=None):
-#         if date is None:
-#             date = get_today_date()  # Get today's date if no date is provided
-
-#         # Convert date to timestamp and add 86400 seconds (24 hours)
-#         start_timestamp = int(datetime.strptime(date, "%Y-%m-%d").timestamp())
-#         end_timestamp = start_timestamp + 86400
-
-#         # Fetch fixtures between the two timestamps from the Fixture model
-#         fixtures = Fixture.objects.filter(fixture_timestamp__gte=start_timestamp, fixture_timestamp__lt=end_timestamp)
-#         if fixtures.exists():
-#             serializer = FixtureSerializer(fixtures, many=True)
-#             return Response(serializer.data)
-#         else:
-#             return self.fetch_fixtures_date(request, date)
-
-#     def fetch_fixtures_date(self, request, date):
-#         url = f"https://v3.football.api-sports.io/fixtures?date={date}"
-#         headers = accheaders  # Ensure accheaders is defined
-        
-#         try:
-#             response = requests.get(url, headers=headers)
-#             response.raise_for_status()
-#             fixtures_data = response.json()['response']
-            
-#             translator = Translator()
-#             for fixture_data in fixtures_data:
-#                 league_id = fixture_data['league']['id']
-
-#                 # Check if league_id exists in myleague_ids
-#                 if league_id not in myleague_ids.values():
-#                     continue  # Skip if league_id is not in myleague_ids
-
-#                 # Check if league_id exists in Leagues model
-#                 if not League.objects.filter(league_id=league_id).exists():
-#                     # If league_id does not exist, fetch league data from API
-#                     LeagueView().fetch_league_data_from_api(league_id)  # Pass league_id correctly
-
-#                 # Fetch the league instance
-#                 league_instance = League.objects.get(league_id=league_id)
-
-#                 # Get the season from the fixture data
-#                 season_year = fixture_data['league']['season']
-
-#                 # Fetch or create the Season instance, ensuring unique entries
-#                 season_instance, created = Season.objects.get_or_create(year=season_year)
-
-#                 # Extract teams' IDs
-#                 home_team_id = fixture_data['teams']['home']['id']
-#                 away_team_id = fixture_data['teams']['away']['id']
-#                 venue_data = fixture_data['fixture']['venue']
-
-#                 # Check if venue data is available
-#                 venue_info = {
-#                     'id': venue_data.get('id'),
-#                     'name': venue_data.get('name'),
-#                     'city': venue_data.get('city'),
-#                     'faName': translator.translate(venue_data.get('name', ''), dest='fa').text if venue_data.get('name') else None,
-#                     'faCity': translator.translate(venue_data.get('city', ''), dest='fa').text if venue_data.get('city') else None,
-#                 }
-
-#                 # Check if home or away team exists in Team
-#                 home_team_exists = Team.objects.filter(team_id=home_team_id).exists()
-#                 away_team_exists = Team.objects.filter(team_id=away_team_id).exists()
-
-#                 # If either team does not exist, fetch the teams from the API
-#                 if not home_team_exists or not away_team_exists:
-#                     TeamView().get_teams_from_api(request, league_id, season_year)
-
-#                 # Now that teams are ensured to exist, save the fixture in the database
-#                 fixture_obj, created = Fixture.objects.update_or_create(
-#                     fixture_id=fixture_data['fixture']['id'],
-#                     defaults={
-#                         'league': league_instance,  # Use the league instance here
-#                         'season': season_instance,   # Use the season instance here
-#                         'teams_home': home_team_id,
-#                         'teams_away': away_team_id,
-#                         'fixture_referee': fixture_data['fixture']['referee'],
-#                         'fixture_timestamp': fixture_data['fixture']['timestamp'],
-#                         'fixture_periods_first': fixture_data['fixture']['periods'].get('first'),
-#                         'fixture_periods_second': fixture_data['fixture']['periods'].get('second'),
-#                         'fixture_venue_name': venue_data['name'],
-#                         'fixture_venue_faName': venue_info['faName'],
-#                         'fixture_venue_city': venue_data['city'],
-#                         'fixture_venue_faCity': venue_info['faCity'],
-#                         'fixture_status_long': fixture_data['fixture']['status']['long'],
-#                         'fixture_status_short': fixture_data['fixture']['status']['short'],
-#                         'fixture_status_elapsed': fixture_data['fixture']['status']['elapsed'],
-#                         'goals': fixture_data['goals'],
-#                         'score_halftime': fixture_data['score'].get('halftime'),
-#                         'score_fulltime': fixture_data['score'].get('fulltime'),
-#                         'score_extratime': fixture_data['score'].get('extratime'),
-#                         'score_penalty': fixture_data['score'].get('penalty'),
-#                     }
-#                 )
-
-#             # After saving all fixtures, return the fixtures from the database
-#             fixtures = Fixture.objects.filter(fixture_timestamp__gte=int(datetime.strptime(date, "%Y-%m-%d").timestamp()),
-#                                                fixture_timestamp__lt=int(datetime.strptime(date, "%Y-%m-%d").timestamp() + 86400))
-#             serializer = FixtureSerializer(fixtures, many=True)
-#             return Response(serializer.data)
-#         except requests.exceptions.RequestException as e:
-#             return Response({"error": "Failed to fetch fixtures from API: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         except Exception as e:
-#             return Response({"error": "An error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+    
 class FixtureDateView(APIView):
     def get(self, request, date=None):
         if date is None:
-            date = get_today_date()  # Get today's date if no date is provided
-
-        # Convert date to timestamp and add 86400 seconds (24 hours)
-        start_timestamp = int(datetime.strptime(date, "%Y-%m-%d").timestamp())
+            date = get_today_date()  # e.g., "2024-06-14"
+        try:
+            start_timestamp = int(datetime.strptime(date, "%Y-%m-%d").timestamp())
+        except Exception:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
         end_timestamp = start_timestamp + 86400
 
-        # Fetch fixtures between the two timestamps from the Fixture model
-        fixtures = Fixture.objects.filter(fixture_timestamp__gte=start_timestamp, fixture_timestamp__lt=end_timestamp)
+        fixtures = Fixture.objects.filter(
+            fixture_timestamp__gte=start_timestamp,
+            fixture_timestamp__lt=end_timestamp
+        ).order_by('fixture_timestamp')
+
         if fixtures.exists():
             serializer = FixtureSerializer(fixtures, many=True)
             return Response(serializer.data)
         else:
-            return self.fetch_fixtures_date(request, date)
+            return self.fetch_fixtures_date(date)
 
-    def fetch_fixtures_date(self, request, date):
+    def fetch_fixtures_date(self, date):
         url = f"https://v3.football.api-sports.io/fixtures?date={date}"
-        headers = accheaders  # Ensure accheaders is defined
-        
+        headers = accheaders
+
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
-            fixtures_data = response.json()['response']
-            
-            translator = Translator()
-            for fixture_data in fixtures_data:
-                league_id = fixture_data['league']['id']
-
-                # Check if league_id exists in myleague_ids
-                if league_id not in myleague_ids.values():
-                    continue  # Skip if league_id is not in myleague_ids
-
-                # Ensure league exists
-                league_instance = self.get_or_create_league(league_id)
-
-                # Get the season from the fixture data
-                season_year = fixture_data['league']['season']
-                season_instance, _ = Season.objects.get_or_create(year=season_year)
-
-                # Extract teams' IDs
-                home_team_id = fixture_data['teams']['home']['id']
-                away_team_id = fixture_data['teams']['away']['id']
-                venue_data = fixture_data['fixture']['venue']
-
-                # Check if venue data is available
-                venue_info = {
-                    'id': venue_data.get('id'),
-                    'name': venue_data.get('name'),
-                    'city': venue_data.get('city'),
-                    'faName': translator.translate(venue_data.get('name', ''), dest='fa').text if venue_data.get('name') else None,
-                    'faCity': translator.translate(venue_data.get('city', ''), dest='fa').text if venue_data.get('city') else None,
-                }
-
-                # Ensure teams exist
-                self.ensure_teams_exist(home_team_id, away_team_id, league_id, season_year)
-
-                # Create or update the fixture
-                fixture_obj, _ = Fixture.objects.update_or_create(
-                    fixture_id=fixture_data['fixture']['id'],
-                    defaults={
-                        'league': league_instance,
-                        'season': season_instance,
-                        'teams_home': home_team_id,
-                        'teams_away': away_team_id,
-                        'fixture_referee': fixture_data['fixture']['referee'],
-                        'fixture_timestamp': fixture_data['fixture']['timestamp'],
-                        'fixture_periods_first': fixture_data['fixture']['periods'].get('first'),
-                        'fixture_periods_second': fixture_data['fixture']['periods'].get('second'),
-                        'fixture_venue_name': venue_data['name'] or '',
-                        'fixture_venue_faName': venue_info['faName'],
-                        'fixture_venue_city': venue_data['city'] or '',
-                        'fixture_venue_faCity': venue_info['faCity'],
-                        'fixture_status_long': fixture_data['fixture']['status']['long'],
-                        'fixture_status_short': fixture_data['fixture']['status']['short'],
-                        'fixture_status_elapsed': fixture_data['fixture']['status']['elapsed'],
-                        'goals': fixture_data['goals'],
-                        'score_halftime': fixture_data['score'].get('halftime'),
-                        'score_fulltime': fixture_data['score'].get('fulltime'),
-                        'score_extratime': fixture_data['score'].get('extratime'),
-                        'score_penalty': fixture_data['score'].get('penalty'),
-                    }
-                )
-
-            # After saving all fixtures, return the fixtures from the database
-            fixtures = Fixture.objects.filter(fixture_timestamp__gte=int(datetime.strptime(date, "%Y-%m-%d").timestamp()),
-                                               fixture_timestamp__lt=int(datetime.strptime(date, "%Y-%m-%d").timestamp() + 86400))
-            serializer = FixtureSerializer(fixtures, many=True)
-            return Response(serializer.data)
+            fixtures_data = response.json().get('response', [])
         except requests.exceptions.RequestException as e:
-            return Response({"error": "Failed to fetch fixtures from API: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            return Response({"error": "An error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"Failed to fetch fixtures from API: {e}"}, status=500)
 
-    def get_or_create_league(self, league_id):
-        """Fetch or create the league instance."""
-        try:
-            return League.objects.get(league_id=league_id)
-        except League.DoesNotExist:
-            league_response = LeagueView().fetch_league_data_from_api(league_id)
-            if league_response.status_code != 200:
-                raise Exception("Failed to fetch league data")
-            return League.objects.get(league_id=league_id)  # Return the newly created league
+        saved_fixtures = []
+        for fixture_data in fixtures_data:
+            league_id = fixture_data['league']['id']
 
-    def ensure_teams_exist(self, home_team_id, away_team_id, league_id, season_year):
-        """Check if teams exist and fetch them from API if not."""
-        team_ids = {home_team_id, away_team_id}
-        for team_id in team_ids:
-            if not Team.objects.filter(team_id=team_id).exists():
-                TeamView().get_teams_from_api(None, league_id, season_year)
+            # Only process leagues in myleague_ids
+            if league_id not in myleague_ids.values():
+                continue
 
+            # Ensure League exists
+            league = League.objects.filter(league_id=league_id).first()
+            if not league:
+                LeagueView().fetch_league_data_from_api(league_id)
+                league = League.objects.filter(league_id=league_id).first()
+                if not league:
+                    continue
 
+            # Ensure Season exists
+            season_year = fixture_data['league']['season']
+            season, _ = Season.objects.get_or_create(league=league, year=season_year)
+
+            # Ensure Teams exist
+            home_team_id = fixture_data['teams']['home']['id']
+            away_team_id = fixture_data['teams']['away']['id']
+            for team_id in [home_team_id, away_team_id]:
+                if not Team.objects.filter(team_id=team_id).exists():
+                    TeamIDView().fetch_team_from_api(team_id)
+
+            home_team = Team.objects.filter(team_id=home_team_id).first()
+            away_team = Team.objects.filter(team_id=away_team_id).first()
+            if not home_team or not away_team:
+                continue
+
+            # Venue info (handle missing keys)
+            venue_data = fixture_data['fixture'].get('venue', {})
+            venue_name = venue_data.get('name', '')
+            venue_city = venue_data.get('city', '')
+
+            # Create or update Fixture
+            fixture_obj, _ = Fixture.objects.update_or_create(
+                fixture_id=fixture_data['fixture']['id'],
+                defaults={
+                    'league': league,
+                    'season': season,
+                    'teams_home': home_team,
+                    'teams_away': away_team,
+                    'fixture_referee': fixture_data['fixture'].get('referee'),
+                    'fixture_timestamp': fixture_data['fixture'].get('timestamp'),
+                    'fixture_periods_first': fixture_data['fixture'].get('periods', {}).get('first'),
+                    'fixture_periods_second': fixture_data['fixture'].get('periods', {}).get('second'),
+                    'fixture_venue_name': venue_name,
+                    'fixture_venue_city': venue_city,
+                    'fixture_status_long': fixture_data['fixture'].get('status', {}).get('long'),
+                    'fixture_status_short': fixture_data['fixture'].get('status', {}).get('short'),
+                    'fixture_status_elapsed': fixture_data['fixture'].get('status', {}).get('elapsed'),
+                    'goals': fixture_data.get('goals', {}),
+                    'score_halftime': fixture_data.get('score', {}).get('halftime'),
+                    'score_fulltime': fixture_data.get('score', {}).get('fulltime'),
+                    'score_extratime': fixture_data.get('score', {}).get('extratime'),
+                    'score_penalty': fixture_data.get('score', {}).get('penalty'),
+                }
+            )
+            saved_fixtures.append(fixture_obj)
+
+        # Return all fixtures for this date from DB (sorted)
+        start_timestamp = int(datetime.strptime(date, "%Y-%m-%d").timestamp())
+        end_timestamp = start_timestamp + 86400
+        fixtures = Fixture.objects.filter(
+            fixture_timestamp__gte=start_timestamp,
+            fixture_timestamp__lt=end_timestamp
+        ).order_by('fixture_timestamp')
+        serializer = FixtureSerializer(fixtures, many=True)
+        return Response(serializer.data)
 
 
 
 
 
 class TableView(APIView):
+    def get(self, request, league_id, season=None):
+        try:
+            league = League.objects.get(league_id=league_id)
+        except League.DoesNotExist:
+            return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if season is not None:
+            try:
+                season_obj = Season.objects.get(league=league, year=season)
+            except Season.DoesNotExist:
+                return Response({"error": "Season not found"}, status=status.HTTP_404_NOT_FOUND)
+            tables = Table.objects.filter(league=league, season=season_obj).order_by('rank')
+        else:
+            tables = Table.objects.filter(league=league).order_by('season__year', 'rank')
+
+        if tables.exists():
+            serializer = TableSerializer(tables, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif season is not None:
+            # If no table data, fetch from API and return
+            return self.get_table_from_api(league_id, season)
+        else:
+            return Response({"error": "No table data found and no season provided to fetch from API."}, status=status.HTTP_404_NOT_FOUND)
     
-    def get(self, request, league, season=None):
-        # Check if league exists in myleague_ids
-        league_id = myleague_ids.get(league)
-        if league_id is None:
-            return Response({"error": "Invalid league"}, status=status.HTTP_400_BAD_REQUEST)
-        if season is None:
-                season = str(get_year())
-        # Check if league exists in the database
-        if not League.objects.filter(league_id=league_id).exists():
-            league_response = LeagueView().fetch_league_data_from_api(league_id)
-            if league_response.status_code != 200:
-                return league_response  # Return the error response from LeagueView
-
-        # Check if the table exists for the league and season
-        if Table.objects.filter(league_id=league_id, season__year=season).exists():
-            table_data = Table.objects.filter(league_id=league_id, season__year=season)
-            serializer = TableSerializer(table_data, many=True)
-            return Response(serializer.data)
-
-        # If table does not exist, fetch from API
-        return self.get_table_from_api(league_id, season)
     def get_table_from_api(self, league_id, season):
         url = f'https://v3.football.api-sports.io/standings?league={league_id}&season={season}'
         headers = accheaders
@@ -2878,79 +2743,79 @@ class TransfersPlayerView(APIView):
         if transfers.exists():
             serializer = TransferSerializer(transfers, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({"error": "No transfers found for this player."}, status=status.HTTP_404_NOT_FOUND)
+        # If not found, fetch from API, save, and return
+        return self.get_player_transfers_from_api(player_id)
 
-    
     def get_player_transfers_from_api(self, player_id):
         url = f'https://v3.football.api-sports.io/transfers?player={player_id}'
         headers = accheaders
         
         try:
             response = requests.get(url, headers=headers)
-            response.raise_for_status()  # Raise an error for bad responses
+            response.raise_for_status()
             data = response.json()
 
             if 'response' not in data or not data['response']:
                 return Response({"error": "No transfer data found for this player."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Prepare to collect transfer instances
             transfers_to_create = []
 
-            # Process each player's transfer data
             for player_data in data['response']:
                 player_id = player_data['player']['id']
                 player_name = player_data['player']['name']
                 
-                # Check if the player exists in the Player model
                 player_instance = Player.objects.filter(player_id=player_id).first()
                 if not player_instance:
-                    # If player does not exist, fetch and save player data
                     PlayerProfileView().get_player_from_api(player_id)
-
-                # Ensure player_instance is valid before proceeding
-                player_instance = Player.objects.filter(player_id=player_id).first()
+                    player_instance = Player.objects.filter(player_id=player_id).first()
                 if not player_instance:
-                    print(f"Player with ID {player_id} could not be created.")
-                    continue  # Skip this player if they could not be created
+                    continue
 
-                # Process each transfer for the player
                 for transfer in player_data['transfers']:
-                    # Convert the date format from "010712" to "2012-07-01"
                     transfer_date_str = transfer['date']
-                    if len(transfer_date_str) == 6:  # Check if the date is in the format "DDMMYY"
+                    if len(transfer_date_str) == 6:
                         transfer_date = datetime.strptime(transfer_date_str, "%d%m%y").date()
                     else:
                         transfer_date = datetime.strptime(transfer_date_str, "%Y-%m-%d").date()
 
                     transfer_type = transfer.get('type', None)
                     team_in_data = transfer['teams']['in']
-                    team_out_data = transfer['teams'].get('out', None)  # Use .get() to avoid KeyError
+                    team_out_data = transfer['teams'].get('out', None)
 
-                    # Check if the incoming team exists
                     team_in_instance = Team.objects.filter(team_id=team_in_data['id']).first()
                     if not team_in_instance:
                         TeamIDView().fetch_team_from_api(team_in_data['id'])
+                        team_in_instance = Team.objects.filter(team_id=team_in_data['id']).first()
+                    if not team_in_instance:
+                        continue
 
-                    # Check if the outgoing team exists
-                    if team_out_data:  # Only proceed if team_out_data is not None
+                    if team_out_data:
                         team_out_instance = Team.objects.filter(team_id=team_out_data['id']).first()
                         if not team_out_instance:
                             TeamIDView().fetch_team_from_api(team_out_data['id'])
+                            team_out_instance = Team.objects.filter(team_id=team_out_data['id']).first()
+                        if not team_out_instance:
+                            continue
 
-                        # Create the Transfer instance
-                        Transfer.objects.create(
-                            player=player_instance,
-                            team_in=team_in_instance,
-                            team_out=team_out_instance,
-                            transfer_date=transfer_date,
-                            transfer_type=transfer_type
+                        transfers_to_create.append(
+                            Transfer(
+                                player=player_instance,
+                                team_in=team_in_instance,
+                                team_out=team_out_instance,
+                                transfer_date=transfer_date,
+                                transfer_type=transfer_type
+                            )
                         )
                     else:
-                        print(f"No outgoing team data for player {player_name}.")
-                        continue  # Skip this transfer if there's no outgoing team
+                        continue
 
-            return Response({"message": "Transfers saved successfully."}, status=status.HTTP_201_CREATED)
+            if transfers_to_create:
+                Transfer.objects.bulk_create(transfers_to_create)
+
+            # Return all transfers for this player after saving
+            transfers = Transfer.objects.filter(player__player_id=player_id).order_by('-transfer_date')
+            serializer = TransferSerializer(transfers, many=True)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if transfers_to_create else status.HTTP_204_NO_CONTENT)
 
         except requests.exceptions.RequestException as e:
             return Response({"error": "Failed to fetch transfer data: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-

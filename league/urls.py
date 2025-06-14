@@ -34,8 +34,8 @@ urlpatterns = [
     path('fixtures/h2h/match/<int:fixture_id>', FixtureH2H.as_view(), name='head_to_head'),
     path('fixtures/date', FixtureDateView.as_view(), name='fixture-date'),
     path('fixtures/date/<str:date>', FixtureDateView.as_view(), name='fixture-date-with-date'),
-    path('tables/<str:league>/<int:season>', TableView.as_view(), name='table_by_season'),
-    path('tables/<str:league>', TableView.as_view(), name='current_table'),
+    path('tables/<int:league_id>/<int:season>', TableView.as_view(), name='table_by_season'),
+    path('tables/<int:league_id>', TableView.as_view(), name='current_table'),
     path('topScore/<int:league_id>/<int:season>', TopScoreView.as_view(), name='topScore_by_season'),
     path('topScore/<int:league_id>', TopScoreView.as_view(), name='topScore'),
     path('topAssist/<int:league_id>/<int:season>', TopAssistView.as_view(), name='topScore_by_season'),
@@ -48,5 +48,5 @@ urlpatterns = [
     path('transfers/TeamOut/<int:team_id>', TransfersTeamOutView.as_view(), name='Transfers_Team_Out'),
     path('transfers/TeamLoanIn/<int:team_id>', TransfersTeamLoanInView.as_view(), name='Transfers_Team_Out_Loan_In'),
     path('transfers/TeamLoanOut/<int:team_id>', TransfersTeamLoanOutView.as_view(), name='Transfers_Team_Out_Loan_In'),
-    path('transfers/Player/<int:player_id>', TransfersPlayerView.as_view(), name='Transfers_By_Playe'), 
+    path('transfers/player/<int:player_id>', TransfersPlayerView.as_view(), name='Transfers_By_Playe'), 
     ]
